@@ -3,187 +3,1170 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>بيت السلندر السوري - النسخة الاحترافية</title>
+<title>بيت السلندر السوري - نظام التتبع</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --navy: #0d1b2a;
     --blue: #1b3a6b;
+    --accent: #2e75b6;
     --gold: #c9a84c;
+    --light: #e8f0fa;
     --white: #ffffff;
     --success: #1a7a4a;
+    --warn: #b85c00;
     --danger: #a01010;
     --text: #1a1a2e;
     --muted: #6b7a8d;
-    --bg-light: #f4f7fa;
+    --border: #c5d5e8;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Cairo', sans-serif; background: var(--navy); color: var(--text); direction: rtl; }
 
-  /* الشاشة الرئيسية */
-  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-  .card { background: var(--white); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-  .card-title { color: var(--blue); font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid var(--gold); padding-bottom: 5px; }
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+  }
 
-  /* الحقول والأزرار */
-  input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-family: 'Cairo'; }
-  .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-  .btn-primary { background: var(--blue); color: white; }
-  .btn-gold { background: var(--gold); color: var(--navy); }
-  .btn-danger { background: var(--danger); color: white; }
+  /* ===== LOGIN ===== */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0d1b2a 0%, #1b3a6b 60%, #0d1b2a 100%);
+    position: relative;
+    overflow: hidden;
+  }
 
-  /* نظام الصفحات */
+  #loginScreen::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    border: 1px solid rgba(201,168,76,0.15);
+    top: -200px; left: -200px;
+  }
+  #loginScreen::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    border: 1px solid rgba(46,117,182,0.2);
+    bottom: -150px; right: -100px;
+  }
+
+  .login-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 20px;
+    padding: 50px 40px;
+    width: 380px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 1;
+    animation: fadeUp 0.6s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .login-logo {
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .login-title {
+    font-size: 22px;
+    color: var(--white);
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+
+  .login-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 36px;
+  }
+
+  .role-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .role-btn {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .role-btn.active {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(201,168,76,0.1);
+  }
+
+  .login-input {
+    width: 100%;
+    padding: 13px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    color: var(--white);
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    margin-bottom: 14px;
+    text-align: right;
+    transition: border-color 0.2s;
+  }
+
+  .login-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .login-input::placeholder { color: rgba(255,255,255,0.3); }
+
+  .login-submit {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--gold), #a8882a);
+    border: none;
+    border-radius: 10px;
+    color: var(--navy);
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .login-submit:hover { opacity: 0.9; }
+
+  /* ===== APP SHELL ===== */
+  #app { display: none; min-height: 100vh; background: #f0f4f8; }
+
+  .topbar {
+    background: linear-gradient(90deg, var(--navy), var(--blue));
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar-icon {
+    width: 36px; height: 36px;
+    background: var(--gold);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .topbar-name {
+    color: var(--white);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .topbar-role {
+    color: var(--gold);
+    font-size: 11px;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .user-badge {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 6px 14px;
+    color: var(--white);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .logout-btn {
+    background: rgba(201,168,76,0.15);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 6px 14px;
+    color: var(--gold);
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .logout-btn:hover { background: rgba(201,168,76,0.25); }
+
+  /* ===== TABS ===== */
+  .tabs {
+    background: var(--white);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    padding: 0 24px;
+    gap: 4px;
+  }
+
+  .tab {
+    padding: 14px 20px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    color: var(--blue);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab:hover { color: var(--blue); }
+
+  /* ===== MAIN CONTENT ===== */
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
   .page { display: none; }
-  .active { display: block; }
+  .page.active { display: block; }
 
-  /* ملفات العمال */
-  .worker-file-item { background: #fff9e6; border-right: 4px solid var(--gold); padding: 10px; margin-bottom: 10px; border-radius: 4px; }
-  .timestamp { font-size: 11px; color: var(--muted); display: block; }
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
 
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--blue); color: white; padding: 10px 20px; border-radius: 30px; display: none; z-index: 1000; }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 4px; height: 18px;
+    background: var(--gold);
+    border-radius: 2px;
+  }
+
+  /* ===== STATS ===== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-top: 3px solid var(--accent);
+  }
+
+  .stat-card.gold { border-top-color: var(--gold); }
+  .stat-card.green { border-top-color: var(--success); }
+  .stat-card.warn { border-top-color: var(--warn); }
+
+  .stat-num {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--blue);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ===== FORMS ===== */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: #fafbfd;
+    transition: border-color 0.2s;
+    text-align: right;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--white);
+  }
+
+  .btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--blue);
+    color: var(--white);
+  }
+
+  .btn-primary:hover { background: #142d55; }
+
+  .btn-gold {
+    background: var(--gold);
+    color: var(--navy);
+  }
+
+  .btn-gold:hover { opacity: 0.9; }
+
+  .btn-success {
+    background: var(--success);
+    color: var(--white);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: var(--white);
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  /* ===== TABLE ===== */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    background: var(--blue);
+    color: var(--white);
+    padding: 11px 14px;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  tr:nth-child(even) td { background: #f7f9fc; }
+  tr:hover td { background: var(--light); }
+
+  /* ===== STAGES ===== */
+  .stages-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .stage-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--border);
+    color: var(--muted);
+    cursor: default;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .stage-dot.done {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--white);
+  }
+
+  .stage-dot.current {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--white);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(46,117,182,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(46,117,182,0); }
+  }
+
+  /* ===== BADGE ===== */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-warn { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+
+  /* ===== PRINT CARD ===== */
+  .print-card {
+    background: var(--white);
+    border: 2px solid var(--blue);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 700px;
+    font-size: 13px;
+  }
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--blue);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .print-company { font-size: 18px; font-weight: 900; color: var(--blue); }
+  .print-sub { font-size: 11px; color: var(--gold); font-weight: 700; }
+  .print-num { font-size: 22px; font-weight: 900; color: var(--navy); background: var(--light); padding: 8px 16px; border-radius: 8px; }
+
+  .print-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .print-field label { font-size: 10px; color: var(--muted); font-weight: 700; display: block; }
+  .print-field span { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .stages-print {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .stage-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+  }
+
+  .stage-chip.done { background: var(--success); border-color: var(--success); color: var(--white); }
+  .stage-chip.pending { background: #f0f4f8; }
+
+  /* ===== WORKER VIEW ===== */
+  .worker-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .worker-search input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    text-align: right;
+  }
+
+  .worker-search input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .cylinder-found {
+    background: linear-gradient(135deg, var(--blue), #142d55);
+    border-radius: 14px;
+    padding: 20px;
+    color: var(--white);
+    margin-bottom: 16px;
+  }
+
+  .cylinder-found-num {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+
+  .stages-btns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .stage-action-btn {
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: var(--white);
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .stage-action-btn:hover { background: rgba(255,255,255,0.18); }
+  .stage-action-btn.done-stage { background: rgba(26,122,74,0.4); border-color: #1a7a4a; }
+  .stage-action-btn.current-stage { background: rgba(201,168,76,0.3); border-color: var(--gold); color: var(--gold); }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 28px;
+    width: 90%;
+    max-width: 500px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--blue);
+    margin-bottom: 20px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .btn-cancel {
+    background: #f0f4f8;
+    color: var(--muted);
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--navy);
+    color: var(--white);
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    border-right: 4px solid var(--gold);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 600px) {
+    .main { padding: 14px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .tabs { overflow-x: auto; }
+    .tab { white-space: nowrap; }
+    .print-row { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <div id="loginPage" class="page active">
-    <div class="card" style="text-align: center;">
-        <h2 style="color: var(--blue)">بيت السلندر السوري</h2>
-        <p style="color: var(--gold)">نظام الإدارة المطور</p>
-        <hr style="margin: 20px 0; opacity: 0.2;">
-        <input type="text" id="loginName" placeholder="اسم المستخدم">
-        <input type="password" id="loginPass" placeholder="كلمة المرور">
-        <div style="display: flex; gap: 10px;">
-            <button class="btn btn-primary" onclick="login('worker')">دخول عمال</button>
-            <button class="btn btn-gold" onclick="login('manager')">دخول إدارة</button>
-        </div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Syrian Cylinder House</div>
+    <div class="login-title">بيت السلندر السوري</div>
+    <div class="login-sub">نظام تتبع السلندرات</div>
+    <div class="role-selector">
+      <button class="role-btn active" onclick="selectRole('manager')">👔 مدير</button>
+      <button class="role-btn" onclick="selectRole('worker')">🔧 عامل</button>
     </div>
-  </div>
-
-  <div id="managerPage" class="page">
-    <div class="card">
-        <div class="card-title">⚙️ إعدادات الحماية</div>
-        <label>كلمة مرور المدير</label>
-        <input type="text" id="newMgrPass" placeholder="تغيير كلمة سر المدير">
-        <label>كلمة مرور العمال</label>
-        <input type="text" id="newWrkPass" placeholder="تغيير كلمة سر العمال">
-        <button class="btn btn-primary" onclick="saveNewSettings()">حفظ الإعدادات</button>
-    </div>
-
-    <div class="card">
-        <div class="card-title">📁 إدارة ملفات العمال</div>
-        <input type="text" id="targetWorker" placeholder="اسم العامل (مثلاً: أحمد)">
-        <textarea id="workerNote" placeholder="اكتب التعليمات أو الملف الخاص بهذا العامل..."></textarea>
-        <button class="btn btn-gold" onclick="addWorkerNote()">إرسال للملف الشخصي</button>
-    </div>
-    <button class="btn btn-danger" onclick="logout()">تسجيل الخروج</button>
-  </div>
-
-  <div id="workerPage" class="page">
-    <div class="card" id="personalFilesCard">
-        <div class="card-title">📂 ملفاتي وتوجيهات الإدارة</div>
-        <div id="workerFilesDisplay">لا توجد ملفات حالياً.</div>
-    </div>
-    <div class="card">
-        <div class="card-title">🏭 تسجيل العمليات</div>
-        <input type="text" placeholder="رقم السلندر">
-        <select>
-            <option>ديكروم (DK)</option>
-            <option>بوليش (PL)</option>
-            <option>نكل (NK)</option>
-            <option>كروم (CR)</option>
-        </select>
-        <button class="btn btn-primary">تحديث الحالة</button>
-    </div>
-    <button class="btn btn-danger" onclick="logout()">تسجيل الخروج</button>
+    <input class="login-input" type="text" id="loginName" placeholder="الاسم" />
+    <input class="login-input" type="password" id="loginPass" placeholder="كلمة المرور" />
+    <button class="login-submit" onclick="doLogin()">دخول</button>
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-icon">⚙️</div>
+      <div>
+        <div class="topbar-name">بيت السلندر السوري</div>
+        <div class="topbar-role" id="topRole">-</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="user-badge">👤 <span id="topUser">-</span></div>
+      <button class="logout-btn" onclick="doLogout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabsBar"></div>
+
+  <div class="main">
+    <!-- MANAGER PAGES -->
+    <!-- Dashboard -->
+    <div class="page" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-title">آخر السلندرات المضافة</div>
+        <div class="table-wrap">
+          <table id="dashTable">
+            <thead><tr>
+              <th>الرقم</th><th>اسم المطبعة</th><th>الطبعة</th><th>المرحلة الحالية</th><th>الحالة</th>
+            </tr></thead>
+            <tbody id="dashTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Cylinder -->
+    <div class="page" id="page-add">
+      <div class="card">
+        <div class="card-title">إضافة سلندر جديد</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الرقم التسلسلي</label>
+            <input type="text" id="f_id" placeholder="SCH-2024-001" readonly style="background:#f0f4f8;font-weight:700;color:var(--blue);" />
+          </div>
+          <div class="form-group">
+            <label>اسم المطبعة</label>
+            <input type="text" id="f_press" placeholder="اسم المطبعة" />
+          </div>
+          <div class="form-group">
+            <label>اسم الطبعة</label>
+            <input type="text" id="f_edition" placeholder="اسم الطبعة" />
+          </div>
+          <div class="form-group">
+            <label>المحيط (مم)</label>
+            <input type="number" id="f_circ" placeholder="مثال: 650" />
+          </div>
+          <div class="form-group">
+            <label>الطول (مم)</label>
+            <input type="number" id="f_length" placeholder="مثال: 1200" />
+          </div>
+          <div class="form-group">
+            <label>الكمية</label>
+            <input type="number" id="f_qty" placeholder="1" />
+          </div>
+          <div class="form-group">
+            <label>النوع</label>
+            <select id="f_type">
+              <option>طباعة فلكسو</option>
+              <option>طباعة جرافور</option>
+              <option>طباعة أوفست</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>ملاحظات</label>
+          <textarea id="f_notes" rows="3" placeholder="أي ملاحظات إضافية..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="addCylinder()">➕ إضافة السلندر</button>
+      </div>
+    </div>
+
+    <!-- All Cylinders -->
+    <div class="page" id="page-all">
+      <div class="card">
+        <div class="card-title">جميع السلندرات</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <input type="text" id="searchInput" placeholder="🔍 بحث برقم أو اسم..." oninput="renderAll()"
+            style="padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:13px;flex:1;min-width:200px;text-align:right;" />
+          <select id="filterStage" onchange="renderAll()"
+            style="padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:13px;">
+            <option value="">كل المراحل</option>
+            <option>ديكروم</option><option>بوليش</option><option>تلبيس نكل</option>
+            <option>تلبيس كروم</option><option>الحفر</option><option>تجربة طباعة</option><option>مكتمل</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>الرقم</th><th>المطبعة</th><th>الطبعة</th><th>المراحل</th><th>المرحلة الحالية</th><th>الحالة</th><th>إجراء</th>
+            </tr></thead>
+            <tbody id="allTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Print Card -->
+    <div class="page" id="page-print">
+      <div class="card">
+        <div class="card-title">طباعة بطاقة تشغيل</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+          <input type="text" id="printSearch" placeholder="أدخل الرقم التسلسلي..." 
+            style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:14px;text-align:right;" />
+          <button class="btn btn-primary" onclick="findForPrint()">بحث</button>
+        </div>
+        <div id="printCardArea"></div>
+      </div>
+    </div>
+
+    <!-- WORKER PAGE -->
+    <div class="page" id="page-worker">
+      <div class="card">
+        <div class="card-title">تسجيل المرحلة</div>
+        <div class="worker-search">
+          <input type="text" id="workerSearchInput" placeholder="أدخل الرقم التسلسلي للسلندر..." />
+          <button class="btn btn-primary" onclick="workerSearch()">بحث</button>
+        </div>
+        <div id="workerResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">سجل عملياتي اليوم</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>الرقم</th><th>المرحلة</th><th>الوقت</th></tr></thead>
+            <tbody id="workerLogBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">-</div>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+      <button class="btn btn-primary" id="modalConfirm">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-    // الحفاظ على البيانات في localStorage
-    let settings = JSON.parse(localStorage.getItem('sch_settings')) || { mgrPass: "1234", wrkPass: "0000" };
-    let workerData = JSON.parse(localStorage.getItem('sch_worker_data')) || {};
-    let currentUser = "";
+// ===================== DATA =====================
+const STAGES = ['ديكروم','بوليش','تلبيس نكل','تلبيس كروم','الحفر','تجربة طباعة'];
+const STAGE_ABBR = ['DK','PL','NK','CR','HF','TR'];
 
-    function login(role) {
-        const name = document.getElementById('loginName').value.trim();
-        const pass = document.getElementById('loginPass').value.trim();
+let currentUser = null;
+let currentRole = 'manager';
+let cylinders = JSON.parse(localStorage.getItem('sch_cylinders') || '[]');
+let workerLog = JSON.parse(localStorage.getItem('sch_workerlog') || '[]');
+let idCounter = parseInt(localStorage.getItem('sch_counter') || '1');
 
-        if (role === 'manager') {
-            if (pass === settings.mgrPass) {
-                showPage('managerPage');
-                showToast("أهلاً بك أيها المدير");
-            } else { showToast("كلمة سر المدير خاطئة"); }
-        } else {
-            if (pass === settings.wrkPass && name !== "") {
-                currentUser = name;
-                showPage('workerPage');
-                displayWorkerNotes();
-                showToast("تم دخول العامل: " + name);
-            } else { showToast("تأكد من الاسم وكلمة السر"); }
-        }
-    }
+function save() {
+  localStorage.setItem('sch_cylinders', JSON.stringify(cylinders));
+  localStorage.setItem('sch_workerlog', JSON.stringify(workerLog));
+  localStorage.setItem('sch_counter', idCounter);
+}
 
-    function saveNewSettings() {
-        const m = document.getElementById('newMgrPass').value;
-        const w = document.getElementById('newWrkPass').value;
-        if (m) settings.mgrPass = m;
-        if (w) settings.wrkPass = w;
-        localStorage.setItem('sch_settings', JSON.stringify(settings));
-        showToast("✅ تم حفظ كلمات المرور الجديدة");
-    }
+function genId() {
+  const y = new Date().getFullYear();
+  const n = String(idCounter).padStart(3,'0');
+  idCounter++;
+  save();
+  return `SCH-${y}-${n}`;
+}
 
-    function addWorkerNote() {
-        const name = document.getElementById('targetWorker').value.trim();
-        const note = document.getElementById('workerNote').value.trim();
-        if (!name || !note) return showToast("أكمل البيانات");
+// ===================== LOGIN =====================
+function selectRole(r) {
+  currentRole = r;
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
 
-        if (!workerData[name]) workerData[name] = [];
-        workerData[name].push({
-            text: note,
-            time: new Date().toLocaleString('ar-SY')
-        });
+function doLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  if (!name) { showToast('أدخل اسمك'); return; }
+  // Simple auth: manager=1234, worker=any
+  if (currentRole === 'manager' && pass !== '1234') { showToast('كلمة المرور غير صحيحة (1234)'); return; }
+  currentUser = name;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('topUser').textContent = name;
+  document.getElementById('topRole').textContent = currentRole === 'manager' ? 'مدير' : 'عامل';
+  buildTabs();
+  if (currentRole === 'manager') {
+    showPage('dashboard');
+    document.getElementById('f_id').value = genId();
+    renderDash();
+    renderAll();
+  } else {
+    showPage('worker');
+    renderWorkerLog();
+  }
+}
 
-        localStorage.setItem('sch_worker_data', JSON.stringify(workerData));
-        showToast("✅ تمت إضافة الملف لـ " + name);
-        document.getElementById('workerNote').value = "";
-    }
+function doLogout() {
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginName').value = '';
+  document.getElementById('loginPass').value = '';
+}
 
-    function displayWorkerNotes() {
-        const container = document.getElementById('workerFilesDisplay');
-        const notes = workerData[currentUser] || [];
-        if (notes.length === 0) {
-            container.innerHTML = "لا توجد تعليمات خاصة بك اليوم.";
-            return;
-        }
-        container.innerHTML = notes.map(n => `
-            <div class="worker-file-item">
-                <p>${n.text}</p>
-                <span class="timestamp">${n.time}</span>
-            </div>
-        `).join('');
-    }
+// ===================== TABS =====================
+function buildTabs() {
+  const bar = document.getElementById('tabsBar');
+  bar.innerHTML = '';
+  const tabs = currentRole === 'manager'
+    ? [{id:'dashboard',label:'📊 لوحة التحكم'},{id:'add',label:'➕ إضافة سلندر'},{id:'all',label:'📋 جميع السلندرات'},{id:'print',label:'🖨️ طباعة البطاقة'}]
+    : [{id:'worker',label:'🔧 تسجيل المرحلة'}];
+  tabs.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tab';
+    btn.textContent = t.label;
+    btn.onclick = () => { showPage(t.id); setActiveTab(btn); };
+    bar.appendChild(btn);
+  });
+  bar.firstChild?.classList.add('active');
+}
 
-    function showPage(id) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
+function setActiveTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
 
-    function logout() {
-        showPage('loginPage');
-        document.getElementById('loginPass').value = "";
-    }
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id)?.classList.add('active');
+}
 
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.innerText = msg;
-        t.style.display = 'block';
-        setTimeout(() => t.style.display = 'none', 3000);
-    }
+// ===================== DASHBOARD =====================
+function renderDash() {
+  const total = cylinders.length;
+  const done = cylinders.filter(c => c.status === 'مكتمل').length;
+  const inprog = cylinders.filter(c => c.status === 'قيد التشغيل').length;
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">إجمالي السلندرات</div></div>
+    <div class="stat-card gold"><div class="stat-num">${inprog}</div><div class="stat-label">قيد التشغيل</div></div>
+    <div class="stat-card green"><div class="stat-num">${done}</div><div class="stat-label">مكتمل</div></div>
+    <div class="stat-card warn"><div class="stat-num">${total - done - inprog}</div><div class="stat-label">في الانتظار</div></div>
+  `;
+  const tbody = document.getElementById('dashTableBody');
+  const recent = [...cylinders].reverse().slice(0, 8);
+  tbody.innerHTML = recent.map(c => `
+    <tr>
+      <td><strong style="color:var(--blue)">${c.id}</strong></td>
+      <td>${c.press}</td>
+      <td>${c.edition}</td>
+      <td>${c.currentStage || 'لم يبدأ'}</td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">لا توجد سلندرات بعد</td></tr>';
+}
+
+function statusBadge(s) {
+  const map = {'مكتمل':'badge-green','قيد التشغيل':'badge-blue','في الانتظار':'badge-warn'};
+  return `<span class="badge ${map[s]||'badge-warn'}">${s||'في الانتظار'}</span>`;
+}
+
+// ===================== ADD CYLINDER =====================
+function addCylinder() {
+  const id = document.getElementById('f_id').value;
+  const press = document.getElementById('f_press').value.trim();
+  const edition = document.getElementById('f_edition').value.trim();
+  if (!press || !edition) { showToast('أدخل اسم المطبعة والطبعة'); return; }
+  const cyl = {
+    id, press, edition,
+    circ: document.getElementById('f_circ').value,
+    length: document.getElementById('f_length').value,
+    qty: document.getElementById('f_qty').value || '1',
+    type: document.getElementById('f_type').value,
+    notes: document.getElementById('f_notes').value,
+    stages: {},
+    currentStage: null,
+    status: 'في الانتظار',
+    createdAt: new Date().toLocaleString('ar-SY'),
+    createdBy: currentUser
+  };
+  cylinders.push(cyl);
+  save();
+  showToast('✅ تم إضافة السلندر ' + id);
+  document.getElementById('f_press').value = '';
+  document.getElementById('f_edition').value = '';
+  document.getElementById('f_circ').value = '';
+  document.getElementById('f_length').value = '';
+  document.getElementById('f_qty').value = '';
+  document.getElementById('f_notes').value = '';
+  document.getElementById('f_id').value = genId();
+  renderDash();
+}
+
+// ===================== ALL CYLINDERS =====================
+function renderAll() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const sf = document.getElementById('filterStage').value;
+  const tbody = document.getElementById('allTableBody');
+  let list = cylinders.filter(c => {
+    const match = !q || c.id.toLowerCase().includes(q) || c.press.toLowerCase().includes(q) || c.edition.toLowerCase().includes(q);
+    const stageMatch = !sf || c.currentStage === sf || (sf === 'مكتمل' && c.status === 'مكتمل');
+    return match && stageMatch;
+  });
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td><strong style="color:var(--blue)">${c.id}</strong></td>
+      <td>${c.press}</td>
+      <td>${c.edition}</td>
+      <td><div class="stages-row">${STAGES.map((s,i) => {
+        const done = c.stages[s];
+        const cur = c.currentStage === s;
+        return `<div class="stage-dot ${done?'done':cur?'current':''}" title="${s}">${STAGE_ABBR[i]}</div>`;
+      }).join('')}</div></td>
+      <td>${c.currentStage || 'لم يبدأ'}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td><button class="btn btn-danger" onclick="deleteCyl('${c.id}')">حذف</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">لا توجد نتائج</td></tr>';
+}
+
+function deleteCyl(id) {
+  openModal('حذف السلندر', `<p>هل تريد حذف السلندر <strong>${id}</strong>؟</p>`, () => {
+    cylinders = cylinders.filter(c => c.id !== id);
+    save();
+    renderAll();
+    renderDash();
+    showToast('تم الحذف');
+    closeModal();
+  });
+}
+
+// ===================== PRINT =====================
+function findForPrint() {
+  const q = document.getElementById('printSearch').value.trim();
+  const c = cylinders.find(x => x.id === q);
+  const area = document.getElementById('printCardArea');
+  if (!c) { area.innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px">لم يُعثر على السلندر</p>'; return; }
+  area.innerHTML = `
+    <div class="print-card" id="thePrintCard">
+      <div class="print-header">
+        <div>
+          <div class="print-company">بيت السلندر السوري</div>
+          <div class="print-sub">SYRIAN CYLINDER HOUSE - MD</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">بطاقة تشغيل سلندر</div>
+        </div>
+        <div class="print-num">${c.id}</div>
+      </div>
+      <div class="print-row">
+        <div class="print-field"><label>اسم المطبعة</label><span>${c.press}</span></div>
+        <div class="print-field"><label>اسم الطبعة</label><span>${c.edition}</span></div>
+        <div class="print-field"><label>النوع</label><span>${c.type}</span></div>
+        <div class="print-field"><label>المحيط</label><span>${c.circ || '-'} مم</span></div>
+        <div class="print-field"><label>الطول</label><span>${c.length || '-'} مم</span></div>
+        <div class="print-field"><label>الكمية</label><span>${c.qty}</span></div>
+        <div class="print-field"><label>تاريخ الإضافة</label><span>${c.createdAt}</span></div>
+        <div class="print-field"><label>الحالة</label><span>${c.status}</span></div>
+        <div class="print-field"><label>المرحلة الحالية</label><span>${c.currentStage||'لم يبدأ'}</span></div>
+      </div>
+      ${c.notes ? `<div style="background:#f7f9fc;border-radius:8px;padding:10px;font-size:12px;margin-top:8px"><strong>ملاحظات:</strong> ${c.notes}</div>` : ''}
+      <div class="stages-print">
+        ${STAGES.map(s => {
+          const d = c.stages[s];
+          return `<div class="stage-chip ${d?'done':'pending'}">
+            ${s}${d?`<br><span style="font-size:10px;opacity:0.8">${d.by} - ${d.time}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة</button>
+    </div>
+  `;
+}
+
+// ===================== WORKER =====================
+function workerSearch() {
+  const q = document.getElementById('workerSearchInput').value.trim();
+  const c = cylinders.find(x => x.id === q);
+  const area = document.getElementById('workerResult');
+  if (!c) { area.innerHTML = '<div style="color:var(--danger);padding:12px;background:#fee2e2;border-radius:10px;text-align:center">لم يُعثر على السلندر</div>'; return; }
+  area.innerHTML = `
+    <div class="cylinder-found">
+      <div class="cylinder-found-num">${c.id}</div>
+      <div style="font-size:13px;opacity:0.8;margin-bottom:4px">${c.press} — ${c.edition}</div>
+      <div style="font-size:12px;opacity:0.6">المرحلة الحالية: ${c.currentStage || 'لم يبدأ'}</div>
+      <div class="stages-btns">
+        ${STAGES.map(s => {
+          const done = c.stages[s];
+          const cur = c.currentStage === s;
+          return `<button class="stage-action-btn ${done?'done-stage':cur?'current-stage':''}" onclick="registerStage('${c.id}','${s}')">
+            ${done ? '✅' : cur ? '⏳' : '○'} ${s}
+            ${done ? `<br><span style="font-size:10px;opacity:0.7">${done.by}</span>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function registerStage(cylId, stage) {
+  const c = cylinders.find(x => x.id === cylId);
+  if (!c) return;
+  if (c.stages[stage]) { showToast('هذه المرحلة مسجلة مسبقاً'); return; }
+  const now = new Date().toLocaleTimeString('ar-SY');
+  c.stages[stage] = { by: currentUser, time: now };
+  c.currentStage = stage;
+  c.status = 'قيد التشغيل';
+  // Check if all done
+  if (STAGES.every(s => c.stages[s])) { c.status = 'مكتمل'; c.currentStage = 'مكتمل'; }
+  workerLog.unshift({ cylId, stage, by: currentUser, time: now, date: new Date().toLocaleDateString('ar-SY') });
+  save();
+  showToast(`✅ تم تسجيل مرحلة "${stage}" للسلندر ${cylId}`);
+  workerSearch();
+  renderWorkerLog();
+}
+
+function renderWorkerLog() {
+  const tbody = document.getElementById('workerLogBody');
+  const myLog = workerLog.filter(l => l.by === currentUser).slice(0, 15);
+  tbody.innerHTML = myLog.map(l => `
+    <tr>
+      <td><strong style="color:var(--blue)">${l.cylId}</strong></td>
+      <td>${l.stage}</td>
+      <td>${l.time} - ${l.date}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">لا توجد عمليات اليوم</td></tr>';
+}
+
+// ===================== MODAL =====================
+let modalAction = null;
+function openModal(title, body, onConfirm) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalConfirm').onclick = onConfirm;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+// ===================== TOAST =====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Init
+document.getElementById('loginName').addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+document.getElementById('loginPass').addEventListener('keydown', e => e.key === 'Enter' && doLogin());
 </script>
-
 </body>
 </html>
