@@ -1,25 +1,33 @@
-// ====================================================================
-// تطبيق بيت السلندر السوري - الإصدار السحابي (Firebase)
-// ====================================================================
+// ==========================================
+// تطبيق بيت السلندر السوري - MVP كامل
+// ==========================================
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA2x1Oa1r4x03cJiGeCKpQPj_kwMns6-e0",
-  authDomain: "cylinder-tracker-82dfb.firebaseapp.com",
-  projectId: "cylinder-tracker-82dfb",
-  storageBucket: "cylinder-tracker-82dfb.firebasestorage.app",
-  messagingSenderId: "1076873817188",
-  appId: "1:1076873817188:web:85e6ba88b89a4c602e0371"
+const DEFAULT_DATA = {
+  admin: { username: 'admin', password: '1234' },
+  workers: [
+    { id: 'w1', username: 'علي', password: '1111' },
+    { id: 'w2', username: 'محمد', password: '2222' }
+  ],
+  cylinders: [],
+  messages: [],
+  nextCylinderId: 1
 };
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+function loadData() {
+  let data = localStorage.getItem('cylinderAppData');
+  if (!data) {
+    localStorage.setItem('cylinderAppData', JSON.stringify(DEFAULT_DATA));
+    return JSON.parse(JSON.stringify(DEFAULT_DATA));
+  }
+  return JSON.parse(data);
+}
 
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
+function saveData(data) {
+  localStorage.setItem('cylinderAppData', JSON.stringify(data));
+}
 
 function formatDateTime(date) {
   if (!date) return '-';
-  if (date.toDate) date = date.toDate();
   return new Date(date).toLocaleString('ar-SY', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
@@ -32,102 +40,29 @@ function formatDuration(minutes) {
 
 function getMinutesDiff(startDate, endDate) {
   if (!startDate || !endDate) return 0;
-  if (startDate.toDate) startDate = startDate.toDate();
-  if (endDate.toDate) endDate = endDate.toDate();
   return Math.floor((new Date(endDate) - new Date(startDate)) / 60000);
 }
 
 const app = {
-  db: db,
+  data: loadData(),
   currentUser: null,
   currentRole: null,
   adminFilter: null,
-  cylinders: [],
-  workers: [],
-  messages: [],
-  adminData: { username: 'admin', password: '1234' },
-  listeners: [],
 
-  async loadCloudData() {
-    const workersSnap = await getDocs(collection(db, 'workers'));
-    this.workers = workersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
-    const adminSnap = await getDocs(collection(db, 'admin'));
-    if (!adminSnap.empty) {
-      this.adminData = { id: adminSnap.docs[0].id, ...adminSnap.docs[0].data() };
-    } else {
-      await addDoc(collection(db, 'admin'), this.adminData);
-    }
-    
-    const msgSnap = await getDocs(collection(db, 'messages'));
-    this.messages = msgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
-    const unsub = onSnapshot(collection(db, 'cylinders'), (snapshot) => {
-      this.cylinders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      this.refreshCurrentView();
-    });
-    this.listeners.push(unsub);
-    
-    const unsubMsg = onSnapshot(collection(db, 'messages'), (snapshot) => {
-      this.messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      this.refreshCurrentView();
-    });
-    this.listeners.push(unsubMsg);
-    
-    const unsubWorkers = onSnapshot(collection(db, 'workers'), (snapshot) => {
-      this.workers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      this.refreshCurrentView();
-    });
-    this.listeners.push(unsubWorkers);
-  },
-
-  refreshCurrentView() {
-    if (!this.currentRole) return;
-    if (this.currentRole === 'admin') {
-      const container = document.getElementById('admin-tabs-container');
-      if (container.innerHTML) {
-        const activeTab = document.querySelector('#admin-screen .tab-btn.active');
-        if (activeTab) {
-          const tabName = activeTab.textContent.includes('الإحصائيات') ? 'dashboard' :
-                          activeTab.textContent.includes('سلندر جديد') ? 'addcylinder' :
-                          activeTab.textContent.includes('السلندرات') ? 'managecylinders' :
-                          activeTab.textContent.includes('العمال') ? 'workers' :
-                          activeTab.textContent.includes('الرسائل') ? 'messages' :
-                          activeTab.textContent.includes('الإعدادات') ? 'settings' : 'dashboard';
-          container.innerHTML = '';
-          this['render' + tabName.charAt(0).toUpperCase() + tabName.slice(1)](container);
-        }
-      }
-    } else if (this.currentRole === 'worker') {
-      const container = document.getElementById('worker-tabs-container');
-      if (container.innerHTML) {
-        const activeTab = document.querySelector('#worker-screen .tab-btn.active');
-        if (activeTab) {
-          const tabName = activeTab.textContent.includes('مهامي') ? 'WorkerTasks' : 'WorkerMessages';
-          container.innerHTML = '';
-          this['render' + tabName](container);
-        }
-      }
-    }
-  },
-
-  async login() {
+  login() {
     const username = document.getElementById('username-input').value.trim();
     const password = document.getElementById('password-input').value.trim();
     const errorDiv = document.getElementById('login-error');
     if (!username || !password) { errorDiv.textContent = 'الرجاء إدخال اسم المستخدم وكلمة المرور'; return; }
-    
-    await this.loadCloudData();
-    
     if (this.currentRole === 'manager') {
-      if (username === this.adminData.username && password === this.adminData.password) {
+      if (username === this.data.admin.username && password === this.data.admin.password) {
         this.currentUser = { username: username, role: 'admin' };
         this.currentRole = 'admin';
         this.showAdminScreen();
         errorDiv.textContent = '';
       } else { errorDiv.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة للمدير'; }
     } else {
-      const worker = this.workers.find(w => w.username === username && w.password === password);
+      const worker = this.data.workers.find(w => w.username === username && w.password === password);
       if (worker) {
         this.currentUser = { ...worker, role: 'worker' };
         this.currentRole = 'worker';
@@ -146,15 +81,13 @@ const app = {
       document.getElementById('username-input').placeholder = 'اسم المستخدم (admin)';
     } else {
       document.getElementById('worker-role-btn').classList.add('active');
-      document.getElementById('username-input').placeholder = 'اسم المستخدم';
+      document.getElementById('username-input').placeholder = 'اسم المستخدم (علي أو محمد)';
     }
     document.getElementById('password-input').value = '';
     document.getElementById('login-error').textContent = '';
   },
 
   logout() {
-    this.listeners.forEach(unsub => unsub());
-    this.listeners = [];
     this.currentUser = null;
     this.currentRole = null;
     this.adminFilter = null;
@@ -203,7 +136,7 @@ const app = {
     if (cyl.currentStepIndex >= cyl.steps.length) return false;
     if (!cyl.stepStartTime) return false;
     const now = new Date();
-    const start = cyl.stepStartTime.toDate ? cyl.stepStartTime.toDate() : new Date(cyl.stepStartTime);
+    const start = new Date(cyl.stepStartTime);
     const diffHours = (now - start) / (1000 * 60 * 60);
     return diffHours >= 24;
   },
@@ -214,23 +147,23 @@ const app = {
   },
 
   renderDashboard(container) {
-    const allActive = this.cylinders.filter(c => c.status === 'active');
+    const allActive = this.data.cylinders.filter(c => c.status === 'active');
     const activeCount = allActive.filter(c => c.currentStepIndex < c.steps.length).length;
     const completedCount = allActive.filter(c => c.currentStepIndex >= c.steps.length).length;
-    const rejected = this.cylinders.filter(c => c.status === 'rejected').length;
-    const delivered = this.cylinders.filter(c => c.status === 'delivered').length;
-    const delayed = this.cylinders.filter(c => this.isDelayed(c)).length;
+    const rejected = this.data.cylinders.filter(c => c.status === 'rejected').length;
+    const delivered = this.data.cylinders.filter(c => c.status === 'delivered').length;
+    const delayed = this.data.cylinders.filter(c => this.isDelayed(c)).length;
     
     let tableData = [];
     let tableTitle = 'جميع السلندرات';
     
     switch(this.adminFilter) {
       case 'active': tableData = allActive; tableTitle = '🟢 السلندرات قيد العمل'; break;
-      case 'delayed': tableData = this.cylinders.filter(c => this.isDelayed(c)); tableTitle = '⏰ السلندرات المتأخرة (+24 ساعة)'; break;
-      case 'completed': tableData = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length); tableTitle = '✅ سلندرات مكتملة بانتظار التسليم'; break;
-      case 'rejected': tableData = this.cylinders.filter(c => c.status === 'rejected'); tableTitle = '🔴 السلندرات المرفوضة'; break;
-      case 'delivered': tableData = this.cylinders.filter(c => c.status === 'delivered'); tableTitle = '📦 السلندرات المسلّمة'; break;
-      default: tableData = this.cylinders; tableTitle = '📋 جميع السلندرات';
+      case 'delayed': tableData = this.data.cylinders.filter(c => this.isDelayed(c)); tableTitle = '⏰ السلندرات المتأخرة (+24 ساعة)'; break;
+      case 'completed': tableData = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length); tableTitle = '✅ سلندرات مكتملة بانتظار التسليم'; break;
+      case 'rejected': tableData = this.data.cylinders.filter(c => c.status === 'rejected'); tableTitle = '🔴 السلندرات المرفوضة'; break;
+      case 'delivered': tableData = this.data.cylinders.filter(c => c.status === 'delivered'); tableTitle = '📦 السلندرات المسلّمة'; break;
+      default: tableData = this.data.cylinders; tableTitle = '📋 جميع السلندرات';
     }
     
     container.innerHTML = `
@@ -244,28 +177,22 @@ const app = {
       
       <div class="stats-grid">
         <div class="stat-box${this.adminFilter === 'active' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('active')" style="cursor:pointer;">
-          <div class="number">${activeCount}</div>
-          <div class="label">🟢 قيد العمل</div>
+          <div class="number">${activeCount}</div><div class="label">🟢 قيد العمل</div>
         </div>
         <div class="stat-box${this.adminFilter === 'delayed' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('delayed')" style="cursor:pointer;${delayed > 0 ? 'border:2px solid var(--danger);' : ''}">
-          <div class="number" style="${delayed > 0 ? 'color:var(--danger);' : ''}">${delayed}</div>
-          <div class="label">⏰ متأخر +24س</div>
+          <div class="number" style="${delayed > 0 ? 'color:var(--danger);' : ''}">${delayed}</div><div class="label">⏰ متأخر +24س</div>
         </div>
         <div class="stat-box${this.adminFilter === 'completed' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('completed')" style="cursor:pointer;">
-          <div class="number">${completedCount}</div>
-          <div class="label">✅ مكتمل</div>
+          <div class="number">${completedCount}</div><div class="label">✅ مكتمل</div>
         </div>
         <div class="stat-box${this.adminFilter === 'rejected' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('rejected')" style="cursor:pointer;">
-          <div class="number">${rejected}</div>
-          <div class="label">🔴 مرفوض</div>
+          <div class="number">${rejected}</div><div class="label">🔴 مرفوض</div>
         </div>
         <div class="stat-box${this.adminFilter === 'delivered' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('delivered')" style="cursor:pointer;">
-          <div class="number">${delivered}</div>
-          <div class="label">📦 مسلَّم</div>
+          <div class="number">${delivered}</div><div class="label">📦 مسلَّم</div>
         </div>
         <div class="stat-box" style="cursor:default;">
-          <div class="number">${this.workers.length}</div>
-          <div class="label">👥 العمال</div>
+          <div class="number">${this.data.workers.length}</div><div class="label">👥 العمال</div>
         </div>
       </div>
       
@@ -277,9 +204,7 @@ const app = {
           : `<div style="overflow-x:auto;">
               <table class="data-table">
                 <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
-                <tbody>
-                  ${[...tableData].reverse().map(c => this.renderCylinderRow(c)).join('')}
-                </tbody>
+                <tbody>${[...tableData].reverse().map(c => this.renderCylinderRow(c)).join('')}</tbody>
               </table>
             </div>`
         }
@@ -290,10 +215,7 @@ const app = {
   renderCylinderRow(c) {
     let info = '';
     let rowBg = '';
-    if (this.isDelayed(c)) {
-      rowBg = 'background:rgba(233,69,96,0.15);';
-      info = ' ⏰ متأخر';
-    }
+    if (this.isDelayed(c)) { rowBg = 'background:rgba(233,69,96,0.15);'; info = ' ⏰ متأخر'; }
     if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
       const last = c.defectHistory[c.defectHistory.length - 1];
       info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
@@ -316,7 +238,7 @@ const app = {
 
   getDelayText(cyl) {
     if (!cyl.stepStartTime) return '';
-    const start = cyl.stepStartTime.toDate ? cyl.stepStartTime.toDate() : new Date(cyl.stepStartTime);
+    const start = new Date(cyl.stepStartTime);
     const now = new Date();
     const diffMinutes = getMinutesDiff(start, now);
     return 'بدأت منذ: ' + formatDuration(diffMinutes);
@@ -326,10 +248,7 @@ const app = {
     const query = document.getElementById('quickSearch').value.trim();
     const resultDiv = document.getElementById('quickSearchResult');
     if (!query) { resultDiv.innerHTML = ''; return; }
-    const found = this.cylinders.filter(c => 
-      c.code.toLowerCase().includes(query.toLowerCase()) ||
-      (c.client && c.client.toLowerCase().includes(query.toLowerCase()))
-    );
+    const found = this.data.cylinders.filter(c => c.code.toLowerCase().includes(query.toLowerCase()) || (c.client && c.client.toLowerCase().includes(query.toLowerCase())));
     if (found.length === 0) {
       resultDiv.innerHTML = '<p style="color:var(--danger);text-align:center;">❌ لا توجد نتائج</p>';
     } else {
@@ -356,10 +275,7 @@ const app = {
       <div class="card">
         <h3>➕ إضافة سلندر جديد</h3>
         <div class="input-group">
-          <select id="cyl-type">
-            <option value="iron">🟤 سلندر حديد (10 مراحل)</option>
-            <option value="chrome">🪞 سلندر كروم (9 مراحل)</option>
-          </select>
+          <select id="cyl-type"><option value="iron">🟤 سلندر حديد (10 مراحل)</option><option value="chrome">🪞 سلندر كروم (9 مراحل)</option></select>
           <input type="text" id="cyl-code" placeholder="الكود المنقوش (يدوياً)">
           <input type="text" id="cyl-client" placeholder="اسم المطبعة أو الزبون">
           <input type="text" id="cyl-print" placeholder="نوع الطبعة">
@@ -372,7 +288,7 @@ const app = {
     `;
   },
 
-  async addNewCylinder() {
+  addNewCylinder() {
     const type = document.getElementById('cyl-type').value;
     const code = document.getElementById('cyl-code').value.trim();
     const client = document.getElementById('cyl-client').value.trim();
@@ -381,20 +297,18 @@ const app = {
     const notes = document.getElementById('cyl-notes').value.trim();
     const errorDiv = document.getElementById('add-cyl-error');
     if (!code || !client || !print) { errorDiv.textContent = '❌ الكود واسم المطبعة ونوع الطبعة حقول إجبارية'; return; }
-    
     const ironSteps = ['مخارط', 'بوليش تلبيس', 'أحواض نيكل', 'أحواض نحاس', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
     const chromeSteps = ['أحواض ديكروم', 'بوليش تلبيس', 'أحواض', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
-    
     const newCylinder = {
-      code, type, client, print, date, notes,
+      id: this.data.nextCylinderId++, code, type, client, print, date, notes,
       steps: type === 'iron' ? ironSteps : chromeSteps,
       currentStepIndex: 0, status: 'active', rejectedReason: '',
-      completedSteps: [], stepStartTime: serverTimestamp(),
+      completedSteps: [], stepStartTime: new Date().toISOString(),
       assignedWorker: null, deliveredTo: '', deliveredDate: null,
-      createdAt: serverTimestamp(), notifiedComplete: false, defectHistory: []
+      createdAt: new Date().toISOString(), notifiedComplete: false, defectHistory: []
     };
-    
-    await addDoc(collection(db, 'cylinders'), newCylinder);
+    this.data.cylinders.push(newCylinder);
+    saveData(this.data);
     document.getElementById('cyl-code').value = '';
     document.getElementById('cyl-client').value = '';
     document.getElementById('cyl-print').value = '';
@@ -403,21 +317,23 @@ const app = {
     alert('✅ تم إضافة السلندر بنجاح: ' + code);
   },
 
-  async deleteCylinder(cylId) {
+  deleteCylinder(cylId) {
     if (!confirm('⚠️ هل أنت متأكد من حذف هذا السلندر؟')) return;
-    await deleteDoc(doc(db, 'cylinders', cylId));
+    this.data.cylinders = this.data.cylinders.filter(c => c.id !== cylId);
+    saveData(this.data);
+    this.renderDashboard(document.getElementById('admin-tabs-container'));
   },
 
   renderManagecylinders(container) {
     container.innerHTML = `
       <div class="card">
         <h3>📋 جميع السلندرات</h3>
-        ${this.cylinders.length === 0 
+        ${this.data.cylinders.length === 0 
           ? '<p style="text-align:center;color:#888;">لا توجد سلندرات</p>'
           : `<div style="overflow-x:auto;">
               <table class="data-table">
                 <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
-                <tbody>${[...this.cylinders].reverse().map(c => this.renderCylinderRow(c)).join('')}</tbody>
+                <tbody>${[...this.data.cylinders].reverse().map(c => this.renderCylinderRow(c)).join('')}</tbody>
               </table>
             </div>`
         }
@@ -425,23 +341,22 @@ const app = {
     `;
   },
 
-  async deliverCylinderPrompt(cylId) {
-    const c = this.cylinders.find(c => c.id === cylId);
+  deliverCylinderPrompt(cylId) {
+    const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
     const recipient = prompt('اسم المستلم:');
     if (!recipient || !recipient.trim()) return;
-    await updateDoc(doc(db, 'cylinders', cylId), {
-      status: 'delivered',
-      deliveredTo: recipient.trim(),
-      deliveredDate: serverTimestamp()
-    });
+    c.status = 'delivered';
+    c.deliveredTo = recipient.trim();
+    c.deliveredDate = new Date().toISOString();
+    saveData(this.data);
     alert(`✅ تم تسليم السلندر ${c.code} إلى ${recipient}`);
+    this.renderManagecylinders(document.getElementById('admin-tabs-container'));
   },
 
   printCard(cylId) {
-    const c = this.cylinders.find(c => c.id === cylId);
+    const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
-    
     const allSteps = c.steps.map((step, index) => {
       let status = '⏳ متبقي', bg = '#fff3cd', worker = '-', startTime = '-', endTime = '-', duration = '-';
       if (index < c.currentStepIndex) {
@@ -459,11 +374,7 @@ const app = {
       }
       return { step, status, bg, worker, startTime, endTime, duration };
     });
-    
-    const stepsHTML = allSteps.map(s => `
-      <tr style="background:${s.bg};"><td>${s.step}</td><td>${s.status}</td><td>${s.worker}</td><td>${s.startTime}</td><td>${s.endTime}</td><td>${s.duration}</td></tr>
-    `).join('');
-    
+    const stepsHTML = allSteps.map(s => `<tr style="background:${s.bg};"><td>${s.step}</td><td>${s.status}</td><td>${s.worker}</td><td>${s.startTime}</td><td>${s.endTime}</td><td>${s.duration}</td></tr>`).join('');
     const w = window.open('', '_blank', 'width=800,height=700');
     w.document.write(`<html dir="rtl"><head><title>بطاقة ${c.code}</title>
       <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -484,7 +395,7 @@ const app = {
           <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
           <p><strong>📅 تاريخ الدخول:</strong> ${formatDateTime(c.createdAt)}</p>
           <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
-          <p><strong>📝 ملاحظات:</strong> ${c.notes||'-'}</p>
+          ${c.status==='delivered'?`<p><strong>🚚 المستلم:</strong> ${c.deliveredTo}</p><p><strong>📅 التسليم:</strong> ${formatDateTime(c.deliveredDate)}</p>`:''}
         </div>
         <h4 style="color:#e2a629;">📋 المراحل مع التوقيت:</h4>
         <table><thead><tr><th>المرحلة</th><th>الحالة</th><th>العامل</th><th>البداية</th><th>النهاية</th><th>المدة</th></tr></thead><tbody>${stepsHTML}</tbody></table>
@@ -496,7 +407,7 @@ const app = {
     container.innerHTML = `
       <div class="card">
         <h3>👥 قائمة العمال</h3>
-        ${this.workers.map(w => `
+        ${this.data.workers.map(w => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #333;">
             <span>👷 <strong>${w.username}</strong></span>
             <div style="display:flex;gap:6px;">
@@ -525,16 +436,18 @@ const app = {
     `;
   },
 
-  async addWorker() {
+  addWorker() {
     const name = document.getElementById('new-worker-name').value.trim();
     const pass = document.getElementById('new-worker-pass').value.trim();
     if (!name || !pass) { alert('❌ الرجاء إدخال اسم وكلمة مرور'); return; }
-    await addDoc(collection(db, 'workers'), { username: name, password: pass });
+    this.data.workers.push({ id: 'w' + Date.now(), username: name, password: pass });
+    saveData(this.data);
     alert('✅ تم إضافة العامل');
+    this.switchTab('workers');
   },
 
   editWorker(workerId) {
-    const w = this.workers.find(x => x.id === workerId);
+    const w = this.data.workers.find(x => x.id === workerId);
     if (!w) return;
     document.getElementById('edit-worker-id').value = workerId;
     document.getElementById('edit-worker-name').value = w.username;
@@ -542,20 +455,24 @@ const app = {
     document.getElementById('edit-worker-form').style.display = 'block';
   },
 
-  async saveWorkerEdit() {
+  saveWorkerEdit() {
     const id = document.getElementById('edit-worker-id').value;
     const name = document.getElementById('edit-worker-name').value.trim();
     const pass = document.getElementById('edit-worker-pass').value.trim();
-    if (!name) { alert('❌ أدخل اسماً'); return; }
-    const update = { username: name };
-    if (pass) update.password = pass;
-    await updateDoc(doc(db, 'workers', id), update);
+    const w = this.data.workers.find(x => x.id === id);
+    if (!w || !name) { alert('❌ أدخل اسماً'); return; }
+    w.username = name;
+    if (pass) w.password = pass;
+    saveData(this.data);
     alert('✅ تم التعديل');
+    this.switchTab('workers');
   },
 
-  async deleteWorker(workerId) {
+  deleteWorker(workerId) {
     if (!confirm('متأكد من حذف العامل؟')) return;
-    await deleteDoc(doc(db, 'workers', workerId));
+    this.data.workers = this.data.workers.filter(w => w.id !== workerId);
+    saveData(this.data);
+    this.switchTab('workers');
   },
 
   renderMessages(container) {
@@ -563,21 +480,32 @@ const app = {
       <div class="card">
         <h3>📩 إرسال رسالة</h3>
         <div class="input-group">
-          <select id="msg-worker-select">${this.workers.map(w => `<option value="${w.id}">${w.username}</option>`).join('')}</select>
+          <select id="msg-worker-select">${this.data.workers.map(w => `<option value="${w.id}">${w.username}</option>`).join('')}</select>
           <textarea id="msg-text" placeholder="نص الرسالة..."></textarea>
         </div>
         <button class="btn primary-btn full-width" onclick="app.sendMessage()">إرسال</button>
       </div>
+      <div class="card">
+        <h3>📋 الرسائل</h3>
+        ${this.data.messages.length === 0 ? '<p style="color:#888;">لا توجد رسائل</p>' : this.data.messages.map(m => {
+          const w = this.data.workers.find(x => x.id === m.to);
+          return `<div style="background:#1a1a3e;padding:12px;border-radius:8px;margin-bottom:8px;border-right:3px solid ${m.received?'var(--success)':'var(--gold)'};">
+            <p><strong>إلى:</strong> ${w?w.username:'محذوف'}</p><p>${m.text}</p>
+            <small>${m.date?formatDateTime(m.date):''} | ${m.received?'✅ تم':'⏳ انتظار'}</small></div>`;
+        }).join('')}
+      </div>
     `;
   },
 
-  async sendMessage() {
+  sendMessage() {
     const to = document.getElementById('msg-worker-select').value;
     const text = document.getElementById('msg-text').value.trim();
     if (!text) return;
-    await addDoc(collection(db, 'messages'), { from: 'admin', to, text, received: false, date: serverTimestamp() });
+    this.data.messages.push({ id: Date.now(), from: 'admin', to, text, received: false, date: new Date().toISOString() });
+    saveData(this.data);
     document.getElementById('msg-text').value = '';
     alert('✅ تم الإرسال');
+    this.switchTab('messages');
   },
 
   renderSettings(container) {
@@ -593,78 +521,65 @@ const app = {
     `;
   },
 
-  async changeAdminPassword() {
+  changeAdminPassword() {
     const old = document.getElementById('old-admin-pass').value.trim();
     const nw = document.getElementById('new-admin-pass').value.trim();
-    if (old !== this.adminData.password) { alert('❌ كلمة مرور قديمة خاطئة'); return; }
+    if (old !== this.data.admin.password) { alert('❌ كلمة مرور قديمة خاطئة'); return; }
     if (!nw || nw.length < 3) { alert('❌ كلمة مرور قصيرة'); return; }
-    await updateDoc(doc(db, 'admin', this.adminData.id), { password: nw });
-    this.adminData.password = nw;
+    this.data.admin.password = nw;
+    saveData(this.data);
     alert('✅ تم التغيير');
   },
 
   renderWorkerTasks(container) {
-    const myCylinders = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
-    const myCompleted = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
-    
+    const myCylinders = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
+    const myCompleted = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
     container.innerHTML = `
-      ${myCompleted.length > 0 ? `
-        <div class="card" style="border-right:4px solid var(--success);margin-bottom:15px;">
-          <h3 style="color:var(--success);">✅ سلندرات مكتملة بانتظار التسليم</h3>
-          ${myCompleted.map(c => `<p>• <strong>${c.code}</strong> - ${c.client}</p>`).join('')}
-        </div>
-      ` : ''}
-      
+      ${myCompleted.length > 0 ? `<div class="card" style="border-right:4px solid var(--success);margin-bottom:15px;"><h3 style="color:var(--success);">✅ سلندرات مكتملة بانتظار التسليم</h3>${myCompleted.map(c => `<p>• <strong>${c.code}</strong> - ${c.client}</p>`).join('')}</div>` : ''}
       <div class="card">
         <h3>🔧 السلندرات قيد العمل</h3>
-        ${myCylinders.length === 0 
-          ? '<p style="text-align:center;color:#888;">لا توجد سلندرات نشطة</p>'
-          : myCylinders.map(c => {
-            const delayed = this.isDelayed(c);
-            return `
-            <div style="background:#1a1a3e;padding:15px;border-radius:8px;margin-bottom:10px;${delayed ? 'border-right:4px solid var(--danger);' : ''}">
-              <div style="display:flex;justify-content:space-between;">
-                <strong>${c.code}</strong>
-                <span>${c.type === 'iron' ? 'حديد' : 'كروم'} | ${c.client}</span>
-              </div>
-              <div style="margin-top:8px;color:var(--gold);">المرحلة: ${c.steps[c.currentStepIndex]}</div>
-              ${c.stepStartTime ? `<div style="color:#888;font-size:0.8em;">${this.getDelayText(c)}</div>` : ''}
-              ${delayed ? '<div style="color:var(--danger);">⚠️ متأخر</div>' : ''}
-              <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn primary-btn" onclick="app.nextStepForWorker('${c.id}')" style="flex:1;">✅ إنجاز</button>
-                <button class="btn small-btn" onclick="app.workerGoBack('${c.id}')" style="flex:1;">⬅️ رجوع</button>
-                <button class="btn small-btn" onclick="app.reportDefectPrompt('${c.id}')" style="flex:1;background:var(--danger);color:white;">⚠️ عيب</button>
-              </div>
+        ${myCylinders.length === 0 ? '<p style="text-align:center;color:#888;">لا توجد سلندرات نشطة</p>' : myCylinders.map(c => {
+          const delayed = this.isDelayed(c);
+          return `<div style="background:#1a1a3e;padding:15px;border-radius:8px;margin-bottom:10px;${delayed ? 'border-right:4px solid var(--danger);' : ''}">
+            <div style="display:flex;justify-content:space-between;"><strong>${c.code}</strong><span>${c.type === 'iron' ? 'حديد' : 'كروم'} | ${c.client}</span></div>
+            <div style="margin-top:8px;color:var(--gold);">المرحلة: ${c.steps[c.currentStepIndex]}</div>
+            ${c.stepStartTime ? `<div style="color:#888;font-size:0.8em;">${this.getDelayText(c)}</div>` : ''}
+            ${delayed ? '<div style="color:var(--danger);">⚠️ متأخر</div>' : ''}
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn primary-btn" onclick="app.nextStepForWorker(${c.id})" style="flex:1;">✅ إنجاز</button>
+              <button class="btn small-btn" onclick="app.workerGoBack(${c.id})" style="flex:1;">⬅️ رجوع</button>
+              <button class="btn small-btn" onclick="app.reportDefectPrompt(${c.id})" style="flex:1;background:var(--danger);color:white;">⚠️ عيب</button>
             </div>
-          `}).join('')
-        }
+          </div>`;
+        }).join('')}
       </div>
     `;
   },
 
-  async nextStepForWorker(cylId) {
-    const cyl = this.cylinders.find(c => c.id === cylId);
+  nextStepForWorker(cylId) {
+    const cyl = this.data.cylinders.find(c => c.id === cylId);
     if (!cyl || cyl.currentStepIndex >= cyl.steps.length) return;
     const now = new Date().toISOString();
-    const completedSteps = [...(cyl.completedSteps || [])];
-    completedSteps.push({ step: cyl.steps[cyl.currentStepIndex], worker: this.currentUser.username, startTime: cyl.stepStartTime || now, endTime: now });
-    const newIndex = cyl.currentStepIndex + 1;
-    const update = { completedSteps, currentStepIndex: newIndex, notifiedComplete: false };
-    if (newIndex < cyl.steps.length) update.stepStartTime = new Date().toISOString();
-    else update.stepStartTime = null;
-    await updateDoc(doc(db, 'cylinders', cylId), update);
+    cyl.completedSteps.push({ step: cyl.steps[cyl.currentStepIndex], worker: this.currentUser.username, startTime: cyl.stepStartTime || now, endTime: now });
+    cyl.currentStepIndex++;
+    if (cyl.currentStepIndex < cyl.steps.length) cyl.stepStartTime = new Date().toISOString();
+    else cyl.stepStartTime = null;
+    saveData(this.data);
+    this.switchWorkerTab('my-tasks');
   },
 
-  async workerGoBack(cylId) {
-    const cyl = this.cylinders.find(c => c.id === cylId);
+  workerGoBack(cylId) {
+    const cyl = this.data.cylinders.find(c => c.id === cylId);
     if (!cyl || cyl.currentStepIndex <= 0) { alert('لا يمكن الرجوع'); return; }
-    const completedSteps = [...(cyl.completedSteps || [])];
-    completedSteps.pop();
-    await updateDoc(doc(db, 'cylinders', cylId), { currentStepIndex: cyl.currentStepIndex - 1, completedSteps, stepStartTime: new Date().toISOString() });
+    cyl.currentStepIndex--;
+    cyl.completedSteps.pop();
+    cyl.stepStartTime = new Date().toISOString();
+    saveData(this.data);
+    this.switchWorkerTab('my-tasks');
   },
 
   reportDefectPrompt(cylId) {
-    const cyl = this.cylinders.find(c => c.id === cylId);
+    const cyl = this.data.cylinders.find(c => c.id === cylId);
     if (!cyl) return;
     const reason = prompt('🔴 سبب الرفض:');
     if (!reason || !reason.trim()) return;
@@ -673,41 +588,41 @@ const app = {
     if (returnIndex === null) return;
     const idx = parseInt(returnIndex);
     if (isNaN(idx) || idx < 0 || idx >= cyl.steps.length) { alert('❌ رقم خطأ'); return; }
-    const now = formatDateTime(new Date());
-    const defectHistory = [...(cyl.defectHistory || []), { reason: reason.trim(), returnTo: cyl.steps[idx], worker: this.currentUser.username, date: now }];
-    const completedSteps = (cyl.completedSteps || []).filter(s => cyl.steps.indexOf(s.step) < idx);
-    updateDoc(doc(db, 'cylinders', cylId), { defectHistory, rejectedReason: reason.trim(), currentStepIndex: idx, status: 'active', completedSteps, stepStartTime: new Date().toISOString() })
-      .then(() => alert(`✅ تم إعادة السلندر إلى "${cyl.steps[idx]}"`));
+    if (!cyl.defectHistory) cyl.defectHistory = [];
+    cyl.defectHistory.push({ reason: reason.trim(), returnTo: cyl.steps[idx], worker: this.currentUser.username, date: formatDateTime(new Date()) });
+    cyl.rejectedReason = reason.trim();
+    cyl.currentStepIndex = idx;
+    cyl.status = 'active';
+    cyl.completedSteps = cyl.completedSteps.filter(s => cyl.steps.indexOf(s.step) < idx);
+    cyl.stepStartTime = new Date().toISOString();
+    saveData(this.data);
+    alert(`✅ تم إعادة السلندر إلى "${cyl.steps[idx]}"`);
+    this.switchWorkerTab('my-tasks');
   },
 
   renderWorkerMessages(container) {
-    const myMessages = this.messages.filter(m => m.to === this.currentUser.id);
+    const myMessages = this.data.messages.filter(m => m.to === this.currentUser.id);
     container.innerHTML = `
       <div class="card">
         <h3>📥 الرسائل الواردة</h3>
-        ${myMessages.length === 0 
-          ? '<p style="color:#888;">لا توجد رسائل</p>'
-          : myMessages.map(m => `
-            <div style="background:#1a1a3e;padding:15px;border-radius:8px;margin-bottom:10px;border-right:3px solid ${m.received ? 'var(--success)' : 'var(--gold)'};">
-              <p>${m.text}</p>
-              <small>${m.date ? formatDateTime(m.date) : ''}</small>
-              ${!m.received ? `<button class="btn small-btn" onclick="app.confirmReceipt('${m.id}')" style="color:var(--gold);border-color:var(--gold);">✅ تم الاستلام</button>` : '<span style="color:var(--success);">✓ تم</span>'}
-            </div>
-          `).join('')
-        }
+        ${myMessages.length === 0 ? '<p style="color:#888;">لا توجد رسائل</p>' : myMessages.map(m => `
+          <div style="background:#1a1a3e;padding:15px;border-radius:8px;margin-bottom:10px;border-right:3px solid ${m.received ? 'var(--success)' : 'var(--gold)'};">
+            <p>${m.text}</p><small>${m.date ? formatDateTime(m.date) : ''}</small>
+            ${!m.received ? `<button class="btn small-btn" onclick="app.confirmReceipt(${m.id})" style="color:var(--gold);border-color:var(--gold);">✅ تم الاستلام</button>` : '<span style="color:var(--success);">✓ تم</span>'}
+          </div>
+        `).join('')}
       </div>
     `;
   },
 
-  async confirmReceipt(msgId) {
-    await updateDoc(doc(db, 'messages', msgId), { received: true });
+  confirmReceipt(msgId) {
+    const msg = this.data.messages.find(m => m.id === msgId);
+    if (msg) { msg.received = true; saveData(this.data); this.switchWorkerTab('worker-messages'); }
   }
 };
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('login-screen').classList.add('active-screen');
-  document.getElementById('password-input').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') app.login();
-  });
+  document.getElementById('password-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') app.login(); });
   app.selectRole('manager');
 });
