@@ -68,39 +68,30 @@
   </style>
 </head>
 <body>
-
   <div id="app">
-
     <section id="login-screen" class="screen active-screen">
       <div class="login-container">
         <div class="logo">⚙️</div>
         <h1>بيت السلندر السوري</h1>
         <p class="tagline">نظام التتبع الذكي</p>
-        
         <div class="role-selector">
           <button id="manager-role-btn" class="role-btn active" onclick="app.selectRole('manager')">👔 مدير</button>
           <button id="worker-role-btn" class="role-btn" onclick="app.selectRole('worker')">👷 عامل</button>
         </div>
-
         <div class="input-group">
           <input type="text" id="username-input" placeholder="اسم المستخدم" autocomplete="off">
           <input type="password" id="password-input" placeholder="كلمة المرور">
         </div>
-
         <button class="btn primary-btn full-width" onclick="app.login()">تسجيل الدخول</button>
         <div id="login-error" class="error-message"></div>
-        
-        <p class="hint">للتجربة: مدير (1234) | عامل (أي اسم)</p>
+        <p class="hint">للتجربة: مدير (admin/1234) | عامل (علي/1111)</p>
       </div>
     </section>
 
     <section id="admin-screen" class="screen">
       <header class="app-header">
         <h2>👑 لوحة المدير</h2>
-        <div>
-          <span id="admin-name-display"></span>
-          <button class="btn small-btn" onclick="app.logout()">خروج</button>
-        </div>
+        <div><span id="admin-name-display"></span><button class="btn small-btn" onclick="app.logout()">خروج</button></div>
       </header>
       <nav class="tab-nav">
         <button class="tab-btn active" onclick="app.switchTab('dashboard')">📊 الإحصائيات</button>
@@ -116,10 +107,7 @@
     <section id="worker-screen" class="screen">
       <header class="app-header">
         <h2>👷 مساحة العامل</h2>
-        <div>
-          <span id="worker-name-display"></span>
-          <button class="btn small-btn" onclick="app.logout()">خروج</button>
-        </div>
+        <div><span id="worker-name-display"></span><button class="btn small-btn" onclick="app.logout()">خروج</button></div>
       </header>
       <nav class="tab-nav">
         <button class="tab-btn active" onclick="app.switchWorkerTab('my-tasks')">🔧 مهامي</button>
@@ -128,7 +116,6 @@
       <main id="worker-tabs-container" class="tabs-container"></main>
     </section>
   </div>
-
-  <script src="app.js" type="module"></script>
+  <script src="app.js"></script>
 </body>
 </html>
