@@ -1,6 +1,6 @@
 // ====================================================================
-// تطبيق بيت السلندر السوري - الإصدار النهائي الكامل
-// الميزات: توقيت المراحل | تنبيه تأخير 24 ساعة | بحث سريع | إشعار اكتمال
+// تطبيق بيت السلندر السوري - الإصدار النهائي المتكامل
+// الميزات: توقيت | تنبيه 24س | بحث سريع | إشعار اكتمال | حذف | لوحة تفاعلية
 // ====================================================================
 
 const DEFAULT_DATA = {
@@ -15,21 +15,20 @@ const DEFAULT_DATA = {
 };
 
 function loadData() {
-  let data = localStorage.getItem('cylinderAppData_v2');
+  let data = localStorage.getItem('cylinderAppData_v3');
   if (!data) {
-    localStorage.setItem('cylinderAppData_v2', JSON.stringify(DEFAULT_DATA));
+    localStorage.setItem('cylinderAppData_v3', JSON.stringify(DEFAULT_DATA));
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
   return JSON.parse(data);
 }
 
 function saveData(data) {
-  localStorage.setItem('cylinderAppData_v2', JSON.stringify(data));
+  localStorage.setItem('cylinderAppData_v3', JSON.stringify(data));
 }
 
-// ============ دوال مساعدة ============
 function formatDateTime(date) {
-  return date.toLocaleString('ar-SY', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(date).toLocaleString('ar-SY', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function formatDuration(minutes) {
@@ -40,16 +39,15 @@ function formatDuration(minutes) {
 }
 
 function getMinutesDiff(startDate, endDate) {
-  return Math.floor((endDate - startDate) / 60000);
+  return Math.floor((new Date(endDate) - new Date(startDate)) / 60000);
 }
 
-// ============ التطبيق الرئيسي ============
 const app = {
   data: loadData(),
   currentUser: null,
   currentRole: null,
+  adminFilter: null, // فلتر لوحة التحكم: 'active', 'rejected', 'delivered', 'delayed', null
 
-  // ============ تسجيل الدخول ============
   login() {
     const username = document.getElementById('username-input').value.trim();
     const password = document.getElementById('password-input').value.trim();
@@ -91,6 +89,7 @@ const app = {
   logout() {
     this.currentUser = null;
     this.currentRole = null;
+    this.adminFilter = null;
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
     document.getElementById('login-screen').classList.add('active-screen');
     document.getElementById('username-input').value = '';
@@ -115,7 +114,6 @@ const app = {
     this.switchWorkerTab('my-tasks');
   },
 
-  // ============ التحقق من إشعارات الاكتمال للمدير ============
   checkCompletedNotifications() {
     const justCompleted = this.data.cylinders.filter(c => 
       c.status === 'active' && c.currentStepIndex >= c.steps.length && !c.notifiedComplete
@@ -129,12 +127,12 @@ const app = {
     }
   },
 
-  // ============ تبديل التبويبات - مدير ============
   switchTab(tabName) {
     document.querySelectorAll('#admin-screen .tab-btn').forEach(btn => btn.classList.remove('active'));
     if (event && event.target) event.target.classList.add('active');
     const container = document.getElementById('admin-tabs-container');
     container.innerHTML = '';
+    this.adminFilter = null;
     switch(tabName) {
       case 'dashboard': this.renderDashboard(container); break;
       case 'add-cylinder': this.renderAddCylinder(container); break;
@@ -156,27 +154,59 @@ const app = {
     }
   },
 
-  // ============ التحقق من تأخير 24 ساعة ============
   isDelayed(cyl) {
     if (cyl.status !== 'active') return false;
     if (cyl.currentStepIndex >= cyl.steps.length) return false;
     if (!cyl.stepStartTime) return false;
     const now = new Date();
     const start = new Date(cyl.stepStartTime);
-    const diffMs = now - start;
-    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffHours = (now - start) / (1000 * 60 * 60);
     return diffHours >= 24;
   },
 
-  // ============ لوحة التحكم ============
+  setFilterAndRefresh(filter) {
+    if (this.adminFilter === filter) {
+      this.adminFilter = null;
+    } else {
+      this.adminFilter = filter;
+    }
+    const container = document.getElementById('admin-tabs-container');
+    container.innerHTML = '';
+    this.renderDashboard(container);
+  },
+
   renderDashboard(container) {
-    const active = this.data.cylinders.filter(c => c.status === 'active').length;
+    const allActive = this.data.cylinders.filter(c => c.status === 'active');
+    const activeCount = allActive.filter(c => c.currentStepIndex < c.steps.length).length;
+    const completedCount = allActive.filter(c => c.currentStepIndex >= c.steps.length).length;
     const rejected = this.data.cylinders.filter(c => c.status === 'rejected').length;
     const delivered = this.data.cylinders.filter(c => c.status === 'delivered').length;
     const delayed = this.data.cylinders.filter(c => this.isDelayed(c)).length;
     
+    let tableData = [];
+    let tableTitle = 'جميع السلندرات';
+    
+    if (this.adminFilter === 'active') {
+      tableData = this.data.cylinders.filter(c => c.status === 'active');
+      tableTitle = '🟢 السلندرات قيد العمل';
+    } else if (this.adminFilter === 'delayed') {
+      tableData = this.data.cylinders.filter(c => this.isDelayed(c));
+      tableTitle = '⏰ السلندرات المتأخرة (+24 ساعة)';
+    } else if (this.adminFilter === 'completed') {
+      tableData = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
+      tableTitle = '✅ سلندرات مكتملة بانتظار التسليم';
+    } else if (this.adminFilter === 'rejected') {
+      tableData = this.data.cylinders.filter(c => c.status === 'rejected');
+      tableTitle = '🔴 السلندرات المرفوضة';
+    } else if (this.adminFilter === 'delivered') {
+      tableData = this.data.cylinders.filter(c => c.status === 'delivered');
+      tableTitle = '📦 السلندرات المسلّمة';
+    } else {
+      tableData = this.data.cylinders;
+      tableTitle = '📋 جميع السلندرات';
+    }
+    
     container.innerHTML = `
-      <!-- شريط بحث سريع -->
       <div class="card" style="margin-bottom:15px;">
         <div style="display:flex;gap:8px;">
           <input type="text" id="quickSearch" placeholder="🔍 بحث سريع برقم السلندر..." style="flex:1;" onkeypress="if(event.key==='Enter')app.quickSearch()">
@@ -186,45 +216,81 @@ const app = {
       </div>
       
       <div class="stats-grid">
-        <div class="stat-box"><div class="number">${active}</div><div class="label">🟢 قيد العمل</div></div>
-        <div class="stat-box" style="${delayed > 0 ? 'border:2px solid var(--danger);' : ''}"><div class="number" style="${delayed > 0 ? 'color:var(--danger);' : ''}">${delayed}</div><div class="label">⏰ متأخر +24س</div></div>
-        <div class="stat-box"><div class="number">${rejected}</div><div class="label">🔴 مرفوض</div></div>
-        <div class="stat-box"><div class="number">${delivered}</div><div class="label">✅ مسلَّم</div></div>
+        <div class="stat-box${this.adminFilter === 'active' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('active')" style="cursor:pointer;">
+          <div class="number">${activeCount}</div>
+          <div class="label">🟢 قيد العمل</div>
+        </div>
+        <div class="stat-box${this.adminFilter === 'delayed' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('delayed')" style="cursor:pointer;${delayed > 0 ? 'border:2px solid var(--danger);' : ''}">
+          <div class="number" style="${delayed > 0 ? 'color:var(--danger);' : ''}">${delayed}</div>
+          <div class="label">⏰ متأخر +24س</div>
+        </div>
+        <div class="stat-box${this.adminFilter === 'completed' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('completed')" style="cursor:pointer;">
+          <div class="number">${completedCount}</div>
+          <div class="label">✅ مكتمل</div>
+        </div>
+        <div class="stat-box${this.adminFilter === 'rejected' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('rejected')" style="cursor:pointer;">
+          <div class="number">${rejected}</div>
+          <div class="label">🔴 مرفوض</div>
+        </div>
+        <div class="stat-box${this.adminFilter === 'delivered' ? ' active-filter' : ''}" onclick="app.setFilterAndRefresh('delivered')" style="cursor:pointer;">
+          <div class="number">${delivered}</div>
+          <div class="label">📦 مسلَّم</div>
+        </div>
+        <div class="stat-box" style="cursor:default;">
+          <div class="number">${this.data.workers.length}</div>
+          <div class="label">👥 العمال</div>
+        </div>
       </div>
       
-      ${delayed > 0 ? `
-        <div class="card" style="border-right:4px solid var(--danger);margin-bottom:15px;">
-          <h3 style="color:var(--danger);">⚠️ سلندرات متأخرة (+24 ساعة)</h3>
-          ${this.data.cylinders.filter(c => this.isDelayed(c)).map(c => `
-            <div style="background:#2e1111;padding:10px;border-radius:8px;margin-bottom:6px;">
-              <strong>${c.code}</strong> | ${c.client} | المرحلة: ${c.steps[c.currentStepIndex]} | ${this.getDelayText(c)}
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-      
       <div class="card">
-        <h3>آخر العمليات</h3>
-        ${this.data.cylinders.length === 0 
-          ? '<p style="text-align:center;color:#888;">لا توجد عمليات بعد</p>'
+        <h3>${tableTitle} (${tableData.length})</h3>
+        ${this.adminFilter ? '<button class="btn small-btn" onclick="app.setFilterAndRefresh(\''+this.adminFilter+'\')" style="margin-bottom:10px;">❌ إلغاء الفلتر</button>' : ''}
+        ${tableData.length === 0 
+          ? '<p style="text-align:center;color:#888;">لا توجد نتائج</p>'
           : `<div style="overflow-x:auto;">
               <table class="data-table">
-                <thead><tr><th>الكود</th><th>النوع</th><th>المرحلة</th><th>الحالة</th></tr></thead>
+                <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
                 <tbody>
-                  ${[...this.data.cylinders].reverse().slice(0, 5).map(c => `
-                    <tr style="${this.isDelayed(c) ? 'background:rgba(233,69,96,0.15);' : ''}">
-                      <td><strong>${c.code}</strong>${this.isDelayed(c) ? ' ⏰' : ''}</td>
+                  ${[...tableData].reverse().map(c => {
+                    let info = '';
+                    let rowBg = '';
+                    if (this.isDelayed(c)) {
+                      rowBg = 'background:rgba(233,69,96,0.15);';
+                      info = ' ⏰ متأخر';
+                    }
+                    if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
+                      const last = c.defectHistory[c.defectHistory.length - 1];
+                      info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
+                    }
+                    const timeText = c.stepStartTime ? this.getDelayText(c) : '-';
+                    return `<tr style="${rowBg}">
+                      <td><strong>${c.code}</strong>${info}</td>
                       <td>${c.type === 'iron' ? 'حديد' : 'كروم'}</td>
+                      <td>${c.client}</td>
                       <td>${c.currentStepIndex < c.steps.length ? c.steps[c.currentStepIndex] : 'مكتمل'}</td>
                       <td><span class="badge badge-${c.status}">${this.getStatusText(c.status)}</span></td>
-                    </tr>
-                  `).join('')}
+                      <td style="font-size:0.75em;">${timeText}</td>
+                      <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                        <button class="btn small-btn" onclick="app.printCard(${c.id})" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
+                        ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? `<button class="btn small-btn" onclick="app.deliverCylinderPrompt(${c.id})" style="color:var(--gold);border-color:var(--gold);">📦 تسليم</button>` : ''}
+                        <button class="btn small-btn" onclick="app.deleteCylinder(${c.id})" style="color:var(--danger);border-color:var(--danger);">🗑️</button>
+                      </td>
+                    </tr>`;
+                  }).join('')}
                 </tbody>
               </table>
             </div>`
         }
       </div>
     `;
+    
+    // تأكد من ظهور الفلتر النشط
+    if (this.adminFilter) {
+      const statBoxes = container.querySelectorAll('.stat-box');
+      statBoxes.forEach(box => box.style.opacity = '0.6');
+      const activeBox = container.querySelector('.stat-box.active-filter');
+      if (activeBox) activeBox.style.opacity = '1';
+    }
   },
 
   getDelayText(cyl) {
@@ -259,7 +325,6 @@ const app = {
     }
   },
 
-  // ============ إضافة سلندر ============
   renderAddCylinder(container) {
     container.innerHTML = `
       <div class="card">
@@ -299,7 +364,6 @@ const app = {
       currentStepIndex: 0,
       status: 'active',
       rejectedReason: '',
-      returnToStep: null,
       completedSteps: [],
       stepStartTime: new Date().toISOString(),
       assignedWorker: null,
@@ -328,7 +392,16 @@ const app = {
     }
   },
 
-  // ============ إدارة السلندرات ============
+  deleteCylinder(cylId) {
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذا السلندر؟ لا يمكن التراجع.')) return;
+    this.data.cylinders = this.data.cylinders.filter(c => c.id !== cylId);
+    saveData(this.data);
+    const container = document.getElementById('admin-tabs-container');
+    container.innerHTML = '';
+    this.renderDashboard(container);
+    alert('🗑️ تم حذف السلندر بنجاح');
+  },
+
   renderManageCylinders(container) {
     container.innerHTML = `
       <div class="card">
@@ -339,20 +412,19 @@ const app = {
               <table class="data-table">
                 <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
                 <tbody>
-                  ${this.data.cylinders.map(c => {
+                  ${[...this.data.cylinders].reverse().map(c => {
                     let info = '';
                     let rowBg = '';
                     if (this.isDelayed(c)) {
                       rowBg = 'background:rgba(233,69,96,0.15);';
                       info = ' ⏰ متأخر';
                     }
-                    if (c.status === 'rejected' && c.defectHistory.length > 0) {
+                    if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
                       const last = c.defectHistory[c.defectHistory.length - 1];
                       info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
                     }
                     const timeText = c.stepStartTime ? this.getDelayText(c) : '-';
-                    return `
-                    <tr style="${rowBg}">
+                    return `<tr style="${rowBg}">
                       <td><strong>${c.code}</strong>${info}</td>
                       <td>${c.type === 'iron' ? 'حديد' : 'كروم'}</td>
                       <td>${c.client}</td>
@@ -362,18 +434,17 @@ const app = {
                       <td style="display:flex;gap:4px;flex-wrap:wrap;">
                         <button class="btn small-btn" onclick="app.printCard(${c.id})" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
                         ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? `<button class="btn small-btn" onclick="app.deliverCylinderPrompt(${c.id})" style="color:var(--gold);border-color:var(--gold);">📦 تسليم</button>` : ''}
+                        <button class="btn small-btn" onclick="app.deleteCylinder(${c.id})" style="color:var(--danger);border-color:var(--danger);">🗑️</button>
                       </td>
-                    </tr>
-                  `}).join('')}
+                    </tr>`;
+                  }).join('')}
                 </tbody>
               </table>
             </div>`
         }
       </div>
     `;
-  },
-
-  deliverCylinderPrompt(cylId) {
+  },  deliverCylinderPrompt(cylId) {
     const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
     const recipient = prompt('اسم المستلم:');
@@ -383,11 +454,12 @@ const app = {
     c.deliveredTo = recipient.trim();
     c.deliveredDate = date;
     saveData(this.data);
-    this.switchTab('manage-cylinders');
+    const container = document.getElementById('admin-tabs-container');
+    container.innerHTML = '';
+    this.renderDashboard(container);
     alert(`✅ تم تسليم السلندر ${c.code} إلى ${recipient}`);
   },
 
-  // ============ بطاقة التشغيل الشاملة ============
   printCard(cylId) {
     const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
@@ -405,16 +477,16 @@ const app = {
         status = '✅ منجز';
         bg = '#d4edda';
         worker = done ? done.worker : '-';
-        startTime = done ? done.startTime || '-' : '-';
-        endTime = done ? done.endTime || '-' : '-';
+        startTime = done ? (done.startTime ? formatDateTime(done.startTime) : '-') : '-';
+        endTime = done ? (done.endTime ? formatDateTime(done.endTime) : '-') : '-';
         if (done && done.startTime && done.endTime) {
-          const mins = getMinutesDiff(new Date(done.startTime), new Date(done.endTime));
+          const mins = getMinutesDiff(done.startTime, done.endTime);
           duration = formatDuration(mins);
         }
       } else if (index === c.currentStepIndex && c.status === 'active') {
         status = '🔄 الحالية';
         bg = '#cce5ff';
-        startTime = c.stepStartTime ? formatDateTime(new Date(c.stepStartTime)) : '-';
+        startTime = c.stepStartTime ? formatDateTime(c.stepStartTime) : '-';
       } else if (c.status === 'rejected' && index === c.currentStepIndex) {
         status = '❌ مرفوضة';
         bg = '#f8d7da';
@@ -434,7 +506,7 @@ const app = {
       </tr>
     `).join('');
     
-    const defectHistoryHTML = c.defectHistory.length > 0 ? `
+    const defectHistoryHTML = c.defectHistory && c.defectHistory.length > 0 ? `
       <h4 style="color:var(--danger);margin-top:20px;">⚠️ سجل الرفض والإعادة:</h4>
       <table>
         <thead><tr><th>السبب</th><th>العودة إلى</th><th>العامل</th><th>التاريخ</th></tr></thead>
@@ -486,10 +558,10 @@ const app = {
           <p><strong>📦 النوع:</strong> ${c.type === 'iron' ? 'حديد (10 مراحل)' : 'كروم (9 مراحل)'}</p>
           <p><strong>🏢 الزبون:</strong> ${c.client}</p>
           <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
-          <p><strong>📅 تاريخ الدخول:</strong> ${c.createdAt ? formatDateTime(new Date(c.createdAt)) : '-'}</p>
+          <p><strong>📅 تاريخ الدخول:</strong> ${c.createdAt ? formatDateTime(c.createdAt) : '-'}</p>
           <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
           <p><strong>📝 ملاحظات:</strong> ${c.notes || '-'}</p>
-          ${c.status === 'delivered' ? `<p><strong>🚚 تم التسليم إلى:</strong> ${c.deliveredTo}</p><p><strong>📅 تاريخ التسليم:</strong> ${c.deliveredDate ? formatDateTime(new Date(c.deliveredDate)) : '-'}</p>` : ''}
+          ${c.status === 'delivered' ? `<p><strong>🚚 تم التسليم إلى:</strong> ${c.deliveredTo}</p><p><strong>📅 تاريخ التسليم:</strong> ${c.deliveredDate ? formatDateTime(c.deliveredDate) : '-'}</p>` : ''}
         </div>
         
         <h4 style="color:#e2a629;">📋 جميع المراحل مع التوقيت:</h4>
@@ -521,7 +593,6 @@ const app = {
     printWindow.document.close();
   },
 
-  // ============ إدارة العمال ============
   renderWorkers(container) {
     container.innerHTML = `
       <div class="card">
@@ -601,7 +672,6 @@ const app = {
     this.switchTab('workers');
   },
 
-  // ============ المراسلة ============
   renderMessages(container) {
     container.innerHTML = `
       <div class="card">
@@ -647,7 +717,6 @@ const app = {
     this.switchTab('messages');
   },
 
-  // ============ الإعدادات ============
   renderSettings(container) {
     container.innerHTML = `
       <div class="card">
@@ -674,7 +743,6 @@ const app = {
     alert('✅ تم تغيير كلمة المرور بنجاح');
   },
 
-  // ============ مهام العامل ============
   renderWorkerTasks(container) {
     const myCylinders = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
     const myCompleted = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
@@ -702,7 +770,7 @@ const app = {
               <div style="margin-top:8px;color:var(--gold);">
                 ⏱️ المرحلة الحالية: ${c.steps[c.currentStepIndex]}
               </div>
-              ${c.stepStartTime ? `<div style="color:#888;font-size:0.8em;">بدأت: ${formatDateTime(new Date(c.stepStartTime))} | ${this.getDelayText(c)}</div>` : ''}
+              ${c.stepStartTime ? `<div style="color:#888;font-size:0.8em;">بدأت: ${formatDateTime(c.stepStartTime)} | ${this.getDelayText(c)}</div>` : ''}
               ${delayed ? '<div style="color:var(--danger);font-weight:bold;">⚠️ متأخر +24 ساعة</div>' : ''}
               <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn primary-btn" onclick="app.nextStepForWorker(${c.id})" style="flex:1;min-width:80px;">✅ إنجاز</button>
@@ -723,7 +791,6 @@ const app = {
       const now = new Date();
       const endTime = now.toISOString();
       
-      // إذا كانت هناك مرحلة سابقة قيد التنفيذ، نغلقها
       cyl.completedSteps.push({
         step: cyl.steps[cyl.currentStepIndex],
         worker: this.currentUser.username,
@@ -733,11 +800,11 @@ const app = {
       
       cyl.currentStepIndex++;
       
-      // بداية توقيت المرحلة الجديدة
       if (cyl.currentStepIndex < cyl.steps.length) {
         cyl.stepStartTime = new Date().toISOString();
       } else {
         cyl.stepStartTime = null;
+        cyl.notifiedComplete = false;
       }
       
       saveData(this.data);
@@ -764,7 +831,6 @@ const app = {
     const reason = prompt('🔴 أدخل سبب الرفض أو العيب:');
     if (!reason || !reason.trim()) return;
     
-    // بناء قائمة المراحل الممكنة للعودة
     const stepsList = cyl.steps.map((s, i) => `${i}: ${s}`).join('\n');
     const returnIndex = prompt(`📋 اختر رقم المرحلة المطلوب العودة إليها:\n\n${stepsList}\n\nأدخل الرقم فقط:`);
     
@@ -777,6 +843,7 @@ const app = {
     
     const now = formatDateTime(new Date());
     
+    if (!cyl.defectHistory) cyl.defectHistory = [];
     cyl.defectHistory.push({
       reason: reason.trim(),
       returnTo: cyl.steps[idx],
@@ -784,17 +851,11 @@ const app = {
       date: now
     });
     
-    cyl.status = 'rejected';
     cyl.rejectedReason = reason.trim();
-    cyl.returnToStep = cyl.steps[idx];
-    cyl.returnToStepIndex = idx;
-    
-    // إعادة السلندر تلقائياً إلى المرحلة المختارة
     cyl.currentStepIndex = idx;
     cyl.status = 'active';
     cyl.stepStartTime = new Date().toISOString();
     
-    // حذف المراحل المكتملة التي بعد المرحلة المختارة
     cyl.completedSteps = cyl.completedSteps.filter(s => {
       const stepIndex = cyl.steps.indexOf(s.step);
       return stepIndex < idx;
@@ -805,7 +866,6 @@ const app = {
     this.switchWorkerTab('my-tasks');
   },
 
-  // ============ رسائل العامل ============
   renderWorkerMessages(container) {
     const myMessages = this.data.messages.filter(m => m.to === this.currentUser.id);
     container.innerHTML = `
@@ -831,7 +891,6 @@ const app = {
   }
 };
 
-// ============ بدء التشغيل ============
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('login-screen').classList.add('active-screen');
   document.getElementById('password-input').addEventListener('keypress', function(e) {
