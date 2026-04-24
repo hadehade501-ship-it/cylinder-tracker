@@ -652,7 +652,8 @@ async changeAdminPassword() {
   await updateDoc(doc(db, 'admin', this.adminData.id), { password: nw });
   this.adminData.password = nw;
   alert('✅ تم التغيير');
-},  // ============ مهام العامل ============
+},  
+  // ============ مهام العامل ============
   renderWorkerTasks(container) {
     const myCylinders = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
     const myCompleted = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
