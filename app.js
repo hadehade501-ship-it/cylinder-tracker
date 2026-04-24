@@ -1,33 +1,29 @@
 // ====================================================================
-// تطبيق بيت السلندر السوري - الإصدار النهائي المتكامل
-// الميزات: توقيت | تنبيه 24س | بحث سريع | إشعار اكتمال | حذف | لوحة تفاعلية
+// تطبيق بيت السلندر السوري - الإصدار السحابي (Firebase)
+// جميع البيانات مشتركة بين المدير والعمال لحظة بلحظة
 // ====================================================================
 
-const DEFAULT_DATA = {
-  admin: { username: 'admin', password: '1234' },
-  workers: [
-    { id: 'w1', username: 'علي', password: '1111' },
-    { id: 'w2', username: 'محمد', password: '2222' }
-  ],
-  cylinders: [],
-  messages: [],
-  nextCylinderId: 1
+// ============ إعدادات Firebase ============
+const firebaseConfig = {
+  apiKey: "AIzaSyA2x1Oa1r4x03cJiGeCKpQPj_kwMns6-e0",
+  authDomain: "cylinder-tracker-82dfb.firebaseapp.com",
+  projectId: "cylinder-tracker-82dfb",
+  storageBucket: "cylinder-tracker-82dfb.firebasestorage.app",
+  messagingSenderId: "1076873817188",
+  appId: "1:1076873817188:web:85e6ba88b89a4c602e0371"
 };
 
-function loadData() {
-  let data = localStorage.getItem('cylinderAppData_v3');
-  if (!data) {
-    localStorage.setItem('cylinderAppData_v3', JSON.stringify(DEFAULT_DATA));
-    return JSON.parse(JSON.stringify(DEFAULT_DATA));
-  }
-  return JSON.parse(data);
-}
+// ============ تحميل مكتبات Firebase ============
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-function saveData(data) {
-  localStorage.setItem('cylinderAppData_v3', JSON.stringify(data));
-}
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
 
+// ============ دوال مساعدة ============
 function formatDateTime(date) {
+  if (!date) return '-';
+  if (date.toDate) date = date.toDate();
   return new Date(date).toLocaleString('ar-SY', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
@@ -39,29 +35,112 @@ function formatDuration(minutes) {
 }
 
 function getMinutesDiff(startDate, endDate) {
+  if (!startDate || !endDate) return 0;
+  if (startDate.toDate) startDate = startDate.toDate();
+  if (endDate.toDate) endDate = endDate.toDate();
   return Math.floor((new Date(endDate) - new Date(startDate)) / 60000);
 }
 
+// ============ التطبيق الرئيسي ============
 const app = {
-  data: loadData(),
+  db: db,
   currentUser: null,
   currentRole: null,
-  adminFilter: null, // فلتر لوحة التحكم: 'active', 'rejected', 'delivered', 'delayed', null
+  adminFilter: null,
+  cylinders: [],
+  workers: [],
+  messages: [],
+  adminData: { username: 'admin', password: '1234' },
+  listeners: [],
 
-  login() {
+  // ============ تحميل البيانات من السحابة ============
+  async loadCloudData() {
+    // تحميل العمال
+    const workersSnap = await getDocs(collection(db, 'workers'));
+    this.workers = workersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // تحميل إعدادات المدير
+    const adminSnap = await getDocs(collection(db, 'admin'));
+    if (!adminSnap.empty) {
+      this.adminData = { id: adminSnap.docs[0].id, ...adminSnap.docs[0].data() };
+    } else {
+      await addDoc(collection(db, 'admin'), this.adminData);
+    }
+    
+    // تحميل الرسائل
+    const msgSnap = await getDocs(collection(db, 'messages'));
+    this.messages = msgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // الاستماع للتحديثات الحية للسلندرات
+    const unsub = onSnapshot(collection(db, 'cylinders'), (snapshot) => {
+      this.cylinders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.refreshCurrentView();
+    });
+    this.listeners.push(unsub);
+    
+    // الاستماع للرسائل
+    const unsubMsg = onSnapshot(collection(db, 'messages'), (snapshot) => {
+      this.messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.refreshCurrentView();
+    });
+    this.listeners.push(unsubMsg);
+    
+    // الاستماع للعمال
+    const unsubWorkers = onSnapshot(collection(db, 'workers'), (snapshot) => {
+      this.workers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.refreshCurrentView();
+    });
+    this.listeners.push(unsubWorkers);
+  },
+
+  refreshCurrentView() {
+    if (!this.currentRole) return;
+    if (this.currentRole === 'admin') {
+      const container = document.getElementById('admin-tabs-container');
+      if (container.innerHTML) {
+        const activeTab = document.querySelector('#admin-screen .tab-btn.active');
+        if (activeTab) {
+          const tabName = activeTab.textContent.includes('الإحصائيات') ? 'dashboard' :
+                          activeTab.textContent.includes('سلندر جديد') ? 'add-cylinder' :
+                          activeTab.textContent.includes('السلندرات') ? 'manage-cylinders' :
+                          activeTab.textContent.includes('العمال') ? 'workers' :
+                          activeTab.textContent.includes('الرسائل') ? 'messages' :
+                          activeTab.textContent.includes('الإعدادات') ? 'settings' : 'dashboard';
+          container.innerHTML = '';
+          this['render' + tabName.charAt(0).toUpperCase() + tabName.slice(1)](container);
+        }
+      }
+    } else if (this.currentRole === 'worker') {
+      const container = document.getElementById('worker-tabs-container');
+      if (container.innerHTML) {
+        const activeTab = document.querySelector('#worker-screen .tab-btn.active');
+        if (activeTab) {
+          const tabName = activeTab.textContent.includes('مهامي') ? 'WorkerTasks' : 'WorkerMessages';
+          container.innerHTML = '';
+          this['render' + tabName](container);
+        }
+      }
+    }
+  },
+
+  // ============ تسجيل الدخول ============
+  async login() {
     const username = document.getElementById('username-input').value.trim();
     const password = document.getElementById('password-input').value.trim();
     const errorDiv = document.getElementById('login-error');
     if (!username || !password) { errorDiv.textContent = 'الرجاء إدخال اسم المستخدم وكلمة المرور'; return; }
+    
+    await this.loadCloudData();
+    
     if (this.currentRole === 'manager') {
-      if (username === this.data.admin.username && password === this.data.admin.password) {
+      if (username === this.adminData.username && password === this.adminData.password) {
         this.currentUser = { username: username, role: 'admin' };
         this.currentRole = 'admin';
         this.showAdminScreen();
         errorDiv.textContent = '';
       } else { errorDiv.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة للمدير'; }
     } else {
-      const worker = this.data.workers.find(w => w.username === username && w.password === password);
+      const worker = this.workers.find(w => w.username === username && w.password === password);
       if (worker) {
         this.currentUser = { ...worker, role: 'worker' };
         this.currentRole = 'worker';
@@ -87,9 +166,14 @@ const app = {
   },
 
   logout() {
+    this.listeners.forEach(unsub => unsub());
+    this.listeners = [];
     this.currentUser = null;
     this.currentRole = null;
     this.adminFilter = null;
+    this.cylinders = [];
+    this.workers = [];
+    this.messages = [];
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
     document.getElementById('login-screen').classList.add('active-screen');
     document.getElementById('username-input').value = '';
@@ -102,7 +186,6 @@ const app = {
     document.getElementById('admin-screen').classList.add('active-screen');
     document.getElementById('worker-screen').classList.remove('active-screen');
     document.getElementById('admin-name-display').textContent = '👔 ' + this.currentUser.username;
-    this.checkCompletedNotifications();
     this.switchTab('dashboard');
   },
 
@@ -114,33 +197,13 @@ const app = {
     this.switchWorkerTab('my-tasks');
   },
 
-  checkCompletedNotifications() {
-    const justCompleted = this.data.cylinders.filter(c => 
-      c.status === 'active' && c.currentStepIndex >= c.steps.length && !c.notifiedComplete
-    );
-    if (justCompleted.length > 0) {
-      justCompleted.forEach(c => { c.notifiedComplete = true; });
-      saveData(this.data);
-      setTimeout(() => {
-        alert('🔔 تنبيه: ' + justCompleted.length + ' سلندر(s) جاهز(ة) للتسليم:\n' + justCompleted.map(c => '• ' + c.code).join('\n'));
-      }, 500);
-    }
-  },
-
   switchTab(tabName) {
     document.querySelectorAll('#admin-screen .tab-btn').forEach(btn => btn.classList.remove('active'));
     if (event && event.target) event.target.classList.add('active');
     const container = document.getElementById('admin-tabs-container');
     container.innerHTML = '';
     this.adminFilter = null;
-    switch(tabName) {
-      case 'dashboard': this.renderDashboard(container); break;
-      case 'add-cylinder': this.renderAddCylinder(container); break;
-      case 'manage-cylinders': this.renderManageCylinders(container); break;
-      case 'workers': this.renderWorkers(container); break;
-      case 'messages': this.renderMessages(container); break;
-      case 'settings': this.renderSettings(container); break;
-    }
+    this['render' + tabName.charAt(0).toUpperCase() + tabName.slice(1).replace(/-/g, '')](container);
   },
 
   switchWorkerTab(tabName) {
@@ -148,10 +211,8 @@ const app = {
     if (event && event.target) event.target.classList.add('active');
     const container = document.getElementById('worker-tabs-container');
     container.innerHTML = '';
-    switch(tabName) {
-      case 'my-tasks': this.renderWorkerTasks(container); break;
-      case 'worker-messages': this.renderWorkerMessages(container); break;
-    }
+    if (tabName === 'my-tasks') this.renderWorkerTasks(container);
+    else this.renderWorkerMessages(container);
   },
 
   isDelayed(cyl) {
@@ -159,51 +220,37 @@ const app = {
     if (cyl.currentStepIndex >= cyl.steps.length) return false;
     if (!cyl.stepStartTime) return false;
     const now = new Date();
-    const start = new Date(cyl.stepStartTime);
+    const start = cyl.stepStartTime.toDate ? cyl.stepStartTime.toDate() : new Date(cyl.stepStartTime);
     const diffHours = (now - start) / (1000 * 60 * 60);
     return diffHours >= 24;
   },
 
   setFilterAndRefresh(filter) {
-    if (this.adminFilter === filter) {
-      this.adminFilter = null;
-    } else {
-      this.adminFilter = filter;
-    }
+    this.adminFilter = this.adminFilter === filter ? null : filter;
     const container = document.getElementById('admin-tabs-container');
     container.innerHTML = '';
     this.renderDashboard(container);
   },
 
+  // ============ لوحة التحكم ============
   renderDashboard(container) {
-    const allActive = this.data.cylinders.filter(c => c.status === 'active');
+    const allActive = this.cylinders.filter(c => c.status === 'active');
     const activeCount = allActive.filter(c => c.currentStepIndex < c.steps.length).length;
     const completedCount = allActive.filter(c => c.currentStepIndex >= c.steps.length).length;
-    const rejected = this.data.cylinders.filter(c => c.status === 'rejected').length;
-    const delivered = this.data.cylinders.filter(c => c.status === 'delivered').length;
-    const delayed = this.data.cylinders.filter(c => this.isDelayed(c)).length;
+    const rejected = this.cylinders.filter(c => c.status === 'rejected').length;
+    const delivered = this.cylinders.filter(c => c.status === 'delivered').length;
+    const delayed = this.cylinders.filter(c => this.isDelayed(c)).length;
     
     let tableData = [];
     let tableTitle = 'جميع السلندرات';
     
-    if (this.adminFilter === 'active') {
-      tableData = this.data.cylinders.filter(c => c.status === 'active');
-      tableTitle = '🟢 السلندرات قيد العمل';
-    } else if (this.adminFilter === 'delayed') {
-      tableData = this.data.cylinders.filter(c => this.isDelayed(c));
-      tableTitle = '⏰ السلندرات المتأخرة (+24 ساعة)';
-    } else if (this.adminFilter === 'completed') {
-      tableData = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
-      tableTitle = '✅ سلندرات مكتملة بانتظار التسليم';
-    } else if (this.adminFilter === 'rejected') {
-      tableData = this.data.cylinders.filter(c => c.status === 'rejected');
-      tableTitle = '🔴 السلندرات المرفوضة';
-    } else if (this.adminFilter === 'delivered') {
-      tableData = this.data.cylinders.filter(c => c.status === 'delivered');
-      tableTitle = '📦 السلندرات المسلّمة';
-    } else {
-      tableData = this.data.cylinders;
-      tableTitle = '📋 جميع السلندرات';
+    switch(this.adminFilter) {
+      case 'active': tableData = allActive; tableTitle = '🟢 السلندرات قيد العمل'; break;
+      case 'delayed': tableData = this.cylinders.filter(c => this.isDelayed(c)); tableTitle = '⏰ السلندرات المتأخرة (+24 ساعة)'; break;
+      case 'completed': tableData = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length); tableTitle = '✅ سلندرات مكتملة بانتظار التسليم'; break;
+      case 'rejected': tableData = this.cylinders.filter(c => c.status === 'rejected'); tableTitle = '🔴 السلندرات المرفوضة'; break;
+      case 'delivered': tableData = this.cylinders.filter(c => c.status === 'delivered'); tableTitle = '📦 السلندرات المسلّمة'; break;
+      default: tableData = this.cylinders; tableTitle = '📋 جميع السلندرات';
     }
     
     container.innerHTML = `
@@ -237,7 +284,7 @@ const app = {
           <div class="label">📦 مسلَّم</div>
         </div>
         <div class="stat-box" style="cursor:default;">
-          <div class="number">${this.data.workers.length}</div>
+          <div class="number">${this.workers.length}</div>
           <div class="label">👥 العمال</div>
         </div>
       </div>
@@ -251,51 +298,45 @@ const app = {
               <table class="data-table">
                 <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
                 <tbody>
-                  ${[...tableData].reverse().map(c => {
-                    let info = '';
-                    let rowBg = '';
-                    if (this.isDelayed(c)) {
-                      rowBg = 'background:rgba(233,69,96,0.15);';
-                      info = ' ⏰ متأخر';
-                    }
-                    if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
-                      const last = c.defectHistory[c.defectHistory.length - 1];
-                      info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
-                    }
-                    const timeText = c.stepStartTime ? this.getDelayText(c) : '-';
-                    return `<tr style="${rowBg}">
-                      <td><strong>${c.code}</strong>${info}</td>
-                      <td>${c.type === 'iron' ? 'حديد' : 'كروم'}</td>
-                      <td>${c.client}</td>
-                      <td>${c.currentStepIndex < c.steps.length ? c.steps[c.currentStepIndex] : 'مكتمل'}</td>
-                      <td><span class="badge badge-${c.status}">${this.getStatusText(c.status)}</span></td>
-                      <td style="font-size:0.75em;">${timeText}</td>
-                      <td style="display:flex;gap:4px;flex-wrap:wrap;">
-                        <button class="btn small-btn" onclick="app.printCard(${c.id})" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
-                        ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? `<button class="btn small-btn" onclick="app.deliverCylinderPrompt(${c.id})" style="color:var(--gold);border-color:var(--gold);">📦 تسليم</button>` : ''}
-                        <button class="btn small-btn" onclick="app.deleteCylinder(${c.id})" style="color:var(--danger);border-color:var(--danger);">🗑️</button>
-                      </td>
-                    </tr>`;
-                  }).join('')}
+                  ${[...tableData].reverse().map(c => this.renderCylinderRow(c)).join('')}
                 </tbody>
               </table>
             </div>`
         }
       </div>
     `;
-    
-    // تأكد من ظهور الفلتر النشط
-    if (this.adminFilter) {
-      const statBoxes = container.querySelectorAll('.stat-box');
-      statBoxes.forEach(box => box.style.opacity = '0.6');
-      const activeBox = container.querySelector('.stat-box.active-filter');
-      if (activeBox) activeBox.style.opacity = '1';
+  },
+
+  renderCylinderRow(c) {
+    let info = '';
+    let rowBg = '';
+    if (this.isDelayed(c)) {
+      rowBg = 'background:rgba(233,69,96,0.15);';
+      info = ' ⏰ متأخر';
     }
+    if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
+      const last = c.defectHistory[c.defectHistory.length - 1];
+      info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
+    }
+    const timeText = c.stepStartTime ? this.getDelayText(c) : '-';
+    return `<tr style="${rowBg}">
+      <td><strong>${c.code}</strong>${info}</td>
+      <td>${c.type === 'iron' ? 'حديد' : 'كروم'}</td>
+      <td>${c.client}</td>
+      <td>${c.currentStepIndex < c.steps.length ? c.steps[c.currentStepIndex] : 'مكتمل'}</td>
+      <td><span class="badge badge-${c.status}">${this.getStatusText(c.status)}</span></td>
+      <td style="font-size:0.75em;">${timeText}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn small-btn" onclick="app.printCard('${c.id}')" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
+        ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? `<button class="btn small-btn" onclick="app.deliverCylinderPrompt('${c.id}')" style="color:var(--gold);border-color:var(--gold);">📦 تسليم</button>` : ''}
+        <button class="btn small-btn" onclick="app.deleteCylinder('${c.id}')" style="color:var(--danger);border-color:var(--danger);">🗑️</button>
+      </td>
+    </tr>`;
   },
 
   getDelayText(cyl) {
     if (!cyl.stepStartTime) return '';
-    const start = new Date(cyl.stepStartTime);
+    const start = cyl.stepStartTime.toDate ? cyl.stepStartTime.toDate() : new Date(cyl.stepStartTime);
     const now = new Date();
     const diffMinutes = getMinutesDiff(start, now);
     return 'بدأت منذ: ' + formatDuration(diffMinutes);
@@ -305,82 +346,20 @@ const app = {
     const query = document.getElementById('quickSearch').value.trim();
     const resultDiv = document.getElementById('quickSearchResult');
     if (!query) { resultDiv.innerHTML = ''; return; }
-    
-    const found = this.data.cylinders.filter(c => 
+    const found = this.cylinders.filter(c => 
       c.code.toLowerCase().includes(query.toLowerCase()) ||
-      c.client.toLowerCase().includes(query.toLowerCase())
+      (c.client && c.client.toLowerCase().includes(query.toLowerCase()))
     );
-    
     if (found.length === 0) {
       resultDiv.innerHTML = '<p style="color:var(--danger);text-align:center;">❌ لا توجد نتائج</p>';
     } else {
       resultDiv.innerHTML = found.map(c => `
         <div style="background:#1a1a3e;padding:10px;border-radius:8px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong>${c.code}</strong> | ${c.client} | ${c.status === 'active' && c.currentStepIndex < c.steps.length ? c.steps[c.currentStepIndex] : this.getStatusText(c.status)}
-          </div>
-          <button class="btn small-btn" onclick="app.printCard(${c.id})" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
+          <div><strong>${c.code}</strong> | ${c.client || ''} | ${this.getStatusText(c.status)}</div>
+          <button class="btn small-btn" onclick="app.printCard('${c.id}')" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
         </div>
       `).join('');
     }
-  },
-
-  renderAddCylinder(container) {
-    container.innerHTML = `
-      <div class="card">
-        <h3>➕ إضافة سلندر جديد</h3>
-        <div class="input-group">
-          <select id="cyl-type">
-            <option value="iron">🟤 سلندر حديد (10 مراحل)</option>
-            <option value="chrome">🪞 سلندر كروم (9 مراحل)</option>
-          </select>
-          <input type="text" id="cyl-code" placeholder="الكود المنقوش (يدوياً)">
-          <input type="text" id="cyl-client" placeholder="اسم المطبعة أو الزبون">
-          <input type="text" id="cyl-print" placeholder="نوع الطبعة">
-          <input type="date" id="cyl-date">
-          <textarea id="cyl-notes" placeholder="ملاحظات (اختياري)"></textarea>
-        </div>
-        <button class="btn primary-btn full-width" onclick="app.addNewCylinder()">إضافة السلندر</button>
-        <div id="add-cyl-error" class="error-message"></div>
-      </div>
-    `;
-  },
-
-  addNewCylinder() {
-    const type = document.getElementById('cyl-type').value;
-    const code = document.getElementById('cyl-code').value.trim();
-    const client = document.getElementById('cyl-client').value.trim();
-    const print = document.getElementById('cyl-print').value.trim();
-    const date = document.getElementById('cyl-date').value;
-    const notes = document.getElementById('cyl-notes').value.trim();
-    const errorDiv = document.getElementById('add-cyl-error');
-    if (!code || !client || !print) { errorDiv.textContent = '❌ الكود واسم المطبعة ونوع الطبعة حقول إجبارية'; return; }
-    const ironSteps = ['مخارط', 'بوليش تلبيس', 'أحواض نيكل', 'أحواض نحاس', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
-    const chromeSteps = ['أحواض ديكروم', 'بوليش تلبيس', 'أحواض', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
-    const newCylinder = {
-      id: this.data.nextCylinderId++,
-      code, type, client, print, date, notes,
-      steps: type === 'iron' ? ironSteps : chromeSteps,
-      currentStepIndex: 0,
-      status: 'active',
-      rejectedReason: '',
-      completedSteps: [],
-      stepStartTime: new Date().toISOString(),
-      assignedWorker: null,
-      deliveredTo: '',
-      deliveredDate: '',
-      createdAt: new Date().toISOString(),
-      notifiedComplete: false,
-      defectHistory: []
-    };
-    this.data.cylinders.push(newCylinder);
-    saveData(this.data);
-    document.getElementById('cyl-code').value = '';
-    document.getElementById('cyl-client').value = '';
-    document.getElementById('cyl-print').value = '';
-    document.getElementById('cyl-notes').value = '';
-    errorDiv.textContent = '';
-    alert('✅ تم إضافة السلندر بنجاح: ' + code);
   },
 
   getStatusText(status) {
@@ -390,362 +369,293 @@ const app = {
       case 'delivered': return 'مُسلَّم';
       default: return status;
     }
-  },
-
-  deleteCylinder(cylId) {
-    if (!confirm('⚠️ هل أنت متأكد من حذف هذا السلندر؟ لا يمكن التراجع.')) return;
-    this.data.cylinders = this.data.cylinders.filter(c => c.id !== cylId);
-    saveData(this.data);
-    const container = document.getElementById('admin-tabs-container');
-    container.innerHTML = '';
-    this.renderDashboard(container);
-    alert('🗑️ تم حذف السلندر بنجاح');
-  },
-
-  renderManageCylinders(container) {
-    container.innerHTML = `
-      <div class="card">
-        <h3>📋 جميع السلندرات</h3>
-        ${this.data.cylinders.length === 0 
-          ? '<p style="text-align:center;color:#888;">لا توجد سلندرات</p>'
-          : `<div style="overflow-x:auto;">
-              <table class="data-table">
-                <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
-                <tbody>
-                  ${[...this.data.cylinders].reverse().map(c => {
-                    let info = '';
-                    let rowBg = '';
-                    if (this.isDelayed(c)) {
-                      rowBg = 'background:rgba(233,69,96,0.15);';
-                      info = ' ⏰ متأخر';
-                    }
-                    if (c.status === 'rejected' && c.defectHistory && c.defectHistory.length > 0) {
-                      const last = c.defectHistory[c.defectHistory.length - 1];
-                      info += `<br><small style="color:var(--danger);">⚠️ ${last.reason} | العودة: ${last.returnTo}</small>`;
-                    }
-                    const timeText = c.stepStartTime ? this.getDelayText(c) : '-';
-                    return `<tr style="${rowBg}">
-                      <td><strong>${c.code}</strong>${info}</td>
-                      <td>${c.type === 'iron' ? 'حديد' : 'كروم'}</td>
-                      <td>${c.client}</td>
-                      <td>${c.currentStepIndex < c.steps.length ? c.steps[c.currentStepIndex] : 'مكتمل'}</td>
-                      <td><span class="badge badge-${c.status}">${this.getStatusText(c.status)}</span></td>
-                      <td style="font-size:0.75em;">${timeText}</td>
-                      <td style="display:flex;gap:4px;flex-wrap:wrap;">
-                        <button class="btn small-btn" onclick="app.printCard(${c.id})" style="color:var(--gold);border-color:var(--gold);">🖨️</button>
-                        ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? `<button class="btn small-btn" onclick="app.deliverCylinderPrompt(${c.id})" style="color:var(--gold);border-color:var(--gold);">📦 تسليم</button>` : ''}
-                        <button class="btn small-btn" onclick="app.deleteCylinder(${c.id})" style="color:var(--danger);border-color:var(--danger);">🗑️</button>
-                      </td>
-                    </tr>`;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>`
-        }
+  },// ============ إضافة سلندر ============
+renderAddcylinder(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h3>➕ إضافة سلندر جديد</h3>
+      <div class="input-group">
+        <select id="cyl-type">
+          <option value="iron">🟤 سلندر حديد (10 مراحل)</option>
+          <option value="chrome">🪞 سلندر كروم (9 مراحل)</option>
+        </select>
+        <input type="text" id="cyl-code" placeholder="الكود المنقوش (يدوياً)">
+        <input type="text" id="cyl-client" placeholder="اسم المطبعة أو الزبون">
+        <input type="text" id="cyl-print" placeholder="نوع الطبعة">
+        <input type="date" id="cyl-date">
+        <textarea id="cyl-notes" placeholder="ملاحظات (اختياري)"></textarea>
       </div>
-    `;
-  },  deliverCylinderPrompt(cylId) {
-    const c = this.data.cylinders.find(c => c.id === cylId);
-    if (!c) return;
-    const recipient = prompt('اسم المستلم:');
-    if (!recipient || !recipient.trim()) return;
-    const date = new Date().toISOString();
-    c.status = 'delivered';
-    c.deliveredTo = recipient.trim();
-    c.deliveredDate = date;
-    saveData(this.data);
-    const container = document.getElementById('admin-tabs-container');
-    container.innerHTML = '';
-    this.renderDashboard(container);
-    alert(`✅ تم تسليم السلندر ${c.code} إلى ${recipient}`);
-  },
+      <button class="btn primary-btn full-width" onclick="app.addNewCylinder()">إضافة السلندر</button>
+      <div id="add-cyl-error" class="error-message"></div>
+    </div>
+  `;
+},
 
-  printCard(cylId) {
-    const c = this.data.cylinders.find(c => c.id === cylId);
-    if (!c) return;
-    
-    const allSteps = c.steps.map((step, index) => {
-      let status = '⏳ متبقي';
-      let bg = '#fff3cd';
-      let worker = '-';
-      let startTime = '-';
-      let endTime = '-';
-      let duration = '-';
-      
-      if (index < c.currentStepIndex) {
-        const done = c.completedSteps.find(s => s.step === step);
-        status = '✅ منجز';
-        bg = '#d4edda';
-        worker = done ? done.worker : '-';
-        startTime = done ? (done.startTime ? formatDateTime(done.startTime) : '-') : '-';
-        endTime = done ? (done.endTime ? formatDateTime(done.endTime) : '-') : '-';
-        if (done && done.startTime && done.endTime) {
-          const mins = getMinutesDiff(done.startTime, done.endTime);
-          duration = formatDuration(mins);
-        }
-      } else if (index === c.currentStepIndex && c.status === 'active') {
-        status = '🔄 الحالية';
-        bg = '#cce5ff';
-        startTime = c.stepStartTime ? formatDateTime(c.stepStartTime) : '-';
-      } else if (c.status === 'rejected' && index === c.currentStepIndex) {
-        status = '❌ مرفوضة';
-        bg = '#f8d7da';
+async addNewCylinder() {
+  const type = document.getElementById('cyl-type').value;
+  const code = document.getElementById('cyl-code').value.trim();
+  const client = document.getElementById('cyl-client').value.trim();
+  const print = document.getElementById('cyl-print').value.trim();
+  const date = document.getElementById('cyl-date').value;
+  const notes = document.getElementById('cyl-notes').value.trim();
+  const errorDiv = document.getElementById('add-cyl-error');
+  if (!code || !client || !print) { errorDiv.textContent = '❌ الكود واسم المطبعة ونوع الطبعة حقول إجبارية'; return; }
+  
+  const ironSteps = ['مخارط', 'بوليش تلبيس', 'أحواض نيكل', 'أحواض نحاس', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
+  const chromeSteps = ['أحواض ديكروم', 'بوليش تلبيس', 'أحواض', 'بوليش للحفر', 'حفر', 'أحواض كروم', 'بوليش كروم', 'بروفا', 'تغليف'];
+  
+  const newCylinder = {
+    code, type, client, print, date, notes,
+    steps: type === 'iron' ? ironSteps : chromeSteps,
+    currentStepIndex: 0,
+    status: 'active',
+    rejectedReason: '',
+    completedSteps: [],
+    stepStartTime: serverTimestamp(),
+    assignedWorker: null,
+    deliveredTo: '',
+    deliveredDate: null,
+    createdAt: serverTimestamp(),
+    notifiedComplete: false,
+    defectHistory: []
+  };
+  
+  await addDoc(collection(db, 'cylinders'), newCylinder);
+  document.getElementById('cyl-code').value = '';
+  document.getElementById('cyl-client').value = '';
+  document.getElementById('cyl-print').value = '';
+  document.getElementById('cyl-notes').value = '';
+  errorDiv.textContent = '';
+  alert('✅ تم إضافة السلندر بنجاح: ' + code);
+},
+
+async deleteCylinder(cylId) {
+  if (!confirm('⚠️ هل أنت متأكد من حذف هذا السلندر؟ لا يمكن التراجع.')) return;
+  await deleteDoc(doc(db, 'cylinders', cylId));
+  alert('🗑️ تم حذف السلندر بنجاح');
+},
+
+// ============ إدارة السلندرات ============
+renderManagecylinders(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h3>📋 جميع السلندرات</h3>
+      ${this.cylinders.length === 0 
+        ? '<p style="text-align:center;color:#888;">لا توجد سلندرات</p>'
+        : `<div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr><th>الكود</th><th>النوع</th><th>الزبون</th><th>المرحلة</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
+              <tbody>
+                ${[...this.cylinders].reverse().map(c => this.renderCylinderRow(c)).join('')}
+              </tbody>
+            </table>
+          </div>`
       }
-      
-      return { step, status, bg, worker, startTime, endTime, duration };
-    });
-    
-    const stepsHTML = allSteps.map(s => `
-      <tr style="background:${s.bg};">
-        <td>${s.step}</td>
-        <td>${s.status}</td>
-        <td>${s.worker}</td>
-        <td>${s.startTime}</td>
-        <td>${s.endTime}</td>
-        <td>${s.duration}</td>
-      </tr>
-    `).join('');
-    
-    const defectHistoryHTML = c.defectHistory && c.defectHistory.length > 0 ? `
-      <h4 style="color:var(--danger);margin-top:20px;">⚠️ سجل الرفض والإعادة:</h4>
-      <table>
-        <thead><tr><th>السبب</th><th>العودة إلى</th><th>العامل</th><th>التاريخ</th></tr></thead>
-        <tbody>
-          ${c.defectHistory.map(d => `
-            <tr>
-              <td>${d.reason}</td>
-              <td>${d.returnTo}</td>
-              <td>${d.worker}</td>
-              <td>${d.date}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    ` : '';
-    
-    const printWindow = window.open('', '_blank', 'width=800,height=700');
-    printWindow.document.write(`
-      <html dir="rtl">
-      <head>
-        <title>بطاقة تشغيل - ${c.code}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-          body { font-family: 'Cairo', sans-serif; padding: 20px; color: #1a1a2e; max-width: 800px; margin: auto; font-size: 0.9em; }
-          .header { text-align: center; border-bottom: 4px solid #e2a629; padding-bottom: 15px; margin-bottom: 20px; }
-          .header h1 { color: #1a1a2e; margin: 0; font-size: 1.5em; }
-          .header .sub { color: #e2a629; font-weight: 700; }
-          .code-big { font-size: 1.6em; font-weight: 900; background: #1a1a2e; color: #e2a629; padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 10px 0; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f5f5f5; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-          .info-grid p { margin: 3px 0; font-size: 0.85em; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8em; }
-          th { background: #1a1a2e; color: #fff; padding: 8px; font-size: 0.8em; }
-          td { padding: 7px; border: 1px solid #ddd; text-align: center; }
-          .legend { display: flex; gap: 12px; margin-top: 12px; font-size: 0.75em; flex-wrap: wrap; }
-          .legend span { padding: 3px 8px; border-radius: 4px; }
-          .btn-print { background: #e2a629; color: #1a1a2e; padding: 12px 35px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; margin: 20px auto; display: block; font-family: 'Cairo', sans-serif; font-size: 1em; }
-          @media print { .btn-print { display: none; } body { padding: 5px; font-size: 0.75em; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>⚙️ بيت السلندر السوري</h1>
-          <p class="sub">بطاقة تشغيل سلندر - تقرير شامل</p>
-        </div>
-        <div style="text-align:center;">
-          <div class="code-big">${c.code}</div>
-        </div>
-        <div class="info-grid">
-          <p><strong>📦 النوع:</strong> ${c.type === 'iron' ? 'حديد (10 مراحل)' : 'كروم (9 مراحل)'}</p>
-          <p><strong>🏢 الزبون:</strong> ${c.client}</p>
-          <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
-          <p><strong>📅 تاريخ الدخول:</strong> ${c.createdAt ? formatDateTime(c.createdAt) : '-'}</p>
-          <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
-          <p><strong>📝 ملاحظات:</strong> ${c.notes || '-'}</p>
-          ${c.status === 'delivered' ? `<p><strong>🚚 تم التسليم إلى:</strong> ${c.deliveredTo}</p><p><strong>📅 تاريخ التسليم:</strong> ${c.deliveredDate ? formatDateTime(c.deliveredDate) : '-'}</p>` : ''}
-        </div>
-        
-        <h4 style="color:#e2a629;">📋 جميع المراحل مع التوقيت:</h4>
-        <table>
-          <thead><tr><th>المرحلة</th><th>الحالة</th><th>العامل</th><th>البداية</th><th>النهاية</th><th>المدة</th></tr></thead>
-          <tbody>${stepsHTML}</tbody>
-        </table>
-        
-        <div class="legend">
-          <span style="background:#d4edda;">✅ منجز</span>
-          <span style="background:#cce5ff;">🔄 الحالية</span>
-          <span style="background:#fff3cd;">⏳ متبقي</span>
-          <span style="background:#f8d7da;">❌ مرفوضة</span>
-        </div>
-        
-        ${defectHistoryHTML}
-        
-        <p style="text-align:center;margin-top:15px;font-weight:700;font-size:1.1em;">
-          ${c.status === 'active' && c.currentStepIndex < c.steps.length ? `🔄 المرحلة الحالية: ${c.steps[c.currentStepIndex]}` : ''}
-          ${c.status === 'active' && c.currentStepIndex >= c.steps.length ? '✅ جميع المراحل مكتملة - في انتظار التسليم' : ''}
-          ${c.status === 'delivered' ? '✅ تم التسليم للعميل' : ''}
-          ${c.status === 'rejected' ? '❌ السلندر مرفوض' : ''}
-        </p>
-        
-        <button class="btn-print" onclick="window.print()">🖨️ طباعة البطاقة</button>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-  },
+    </div>
+  `;
+},
 
-  renderWorkers(container) {
-    container.innerHTML = `
-      <div class="card">
-        <h3>👥 قائمة العمال</h3>
-        ${this.data.workers.map(w => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #333;flex-wrap:wrap;gap:8px;">
-            <span>👷 <strong>${w.username}</strong> (${w.id})</span>
-            <div style="display:flex;gap:6px;">
-              <button class="btn small-btn" onclick="app.editWorker('${w.id}')" style="color:var(--gold);border-color:var(--gold);">✏️ تعديل</button>
-              <button class="btn small-btn" onclick="app.deleteWorker('${w.id}')">🗑️ حذف</button>
-            </div>
+async deliverCylinderPrompt(cylId) {
+  const c = this.cylinders.find(c => c.id === cylId);
+  if (!c) return;
+  const recipient = prompt('اسم المستلم:');
+  if (!recipient || !recipient.trim()) return;
+  await updateDoc(doc(db, 'cylinders', cylId), {
+    status: 'delivered',
+    deliveredTo: recipient.trim(),
+    deliveredDate: serverTimestamp()
+  });
+  alert(`✅ تم تسليم السلندر ${c.code} إلى ${recipient}`);
+},
+
+// ============ بطاقة التشغيل ============
+printCard(cylId) {
+  const c = this.cylinders.find(c => c.id === cylId);
+  if (!c) return;
+  
+  const allSteps = c.steps.map((step, index) => {
+    let status = '⏳ متبقي', bg = '#fff3cd', worker = '-', startTime = '-', endTime = '-', duration = '-';
+    
+    if (index < c.currentStepIndex) {
+      const done = c.completedSteps.find(s => s.step === step);
+      status = '✅ منجز'; bg = '#d4edda';
+      worker = done ? done.worker : '-';
+      startTime = done ? formatDateTime(done.startTime) : '-';
+      endTime = done ? formatDateTime(done.endTime) : '-';
+      if (done && done.startTime && done.endTime) duration = formatDuration(getMinutesDiff(done.startTime, done.endTime));
+    } else if (index === c.currentStepIndex && c.status === 'active') {
+      status = '🔄 الحالية'; bg = '#cce5ff';
+      startTime = c.stepStartTime ? formatDateTime(c.stepStartTime) : '-';
+    } else if (c.status === 'rejected' && index === c.currentStepIndex) {
+      status = '❌ مرفوضة'; bg = '#f8d7da';
+    }
+    return { step, status, bg, worker, startTime, endTime, duration };
+  });
+  
+  const stepsHTML = allSteps.map(s => `
+    <tr style="background:${s.bg};"><td>${s.step}</td><td>${s.status}</td><td>${s.worker}</td><td>${s.startTime}</td><td>${s.endTime}</td><td>${s.duration}</td></tr>
+  `).join('');
+  
+  const defectHTML = (c.defectHistory && c.defectHistory.length > 0) ? `
+    <h4 style="color:var(--danger);">⚠️ سجل الرفض:</h4>
+    <table><thead><tr><th>السبب</th><th>العودة</th><th>العامل</th><th>التاريخ</th></tr></thead>
+    <tbody>${c.defectHistory.map(d => `<tr><td>${d.reason}</td><td>${d.returnTo}</td><td>${d.worker}</td><td>${d.date}</td></tr>`).join('')}</tbody></table>
+  ` : '';
+  
+  const w = window.open('', '_blank', 'width=800,height=700');
+  w.document.write(`<html dir="rtl"><head><title>بطاقة ${c.code}</title>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+      body{font-family:'Cairo',sans-serif;padding:20px;color:#1a1a2e;max-width:800px;margin:auto;font-size:0.9em;}
+      .header{text-align:center;border-bottom:4px solid #e2a629;padding-bottom:15px;margin-bottom:20px;}
+      .header h1{color:#1a1a2e;margin:0;font-size:1.5em;}.header .sub{color:#e2a629;font-weight:700;}
+      .code-big{font-size:1.6em;font-weight:900;background:#1a1a2e;color:#e2a629;padding:10px 20px;border-radius:10px;display:inline-block;margin:10px 0;}
+      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:20px;}
+      table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.8em;}
+      th{background:#1a1a2e;color:#fff;padding:8px;}td{padding:7px;border:1px solid #ddd;text-align:center;}
+      .btn-print{background:#e2a629;color:#1a1a2e;padding:12px 35px;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin:20px auto;display:block;font-family:'Cairo',sans-serif;}
+      @media print{.btn-print{display:none;}}</style></head><body>
+      <div class="header"><h1>⚙️ بيت السلندر السوري</h1><p class="sub">بطاقة تشغيل سلندر</p></div>
+      <div style="text-align:center;"><div class="code-big">${c.code}</div></div>
+      <div class="info-grid">
+        <p><strong>📦 النوع:</strong> ${c.type==='iron'?'حديد (10 مراحل)':'كروم (9 مراحل)'}</p>
+        <p><strong>🏢 الزبون:</strong> ${c.client}</p>
+        <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
+        <p><strong>📅 تاريخ الدخول:</strong> ${formatDateTime(c.createdAt)}</p>
+        <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
+        <p><strong>📝 ملاحظات:</strong> ${c.notes||'-'}</p>
+        ${c.status==='delivered'?`<p><strong>🚚 المستلم:</strong> ${c.deliveredTo}</p><p><strong>📅 التسليم:</strong> ${formatDateTime(c.deliveredDate)}</p>`:''}
+      </div>
+      <h4 style="color:#e2a629;">📋 المراحل مع التوقيت:</h4>
+      <table><thead><tr><th>المرحلة</th><th>الحالة</th><th>العامل</th><th>البداية</th><th>النهاية</th><th>المدة</th></tr></thead><tbody>${stepsHTML}</tbody></table>
+      ${defectHTML}
+      <button class="btn-print" onclick="window.print()">🖨️ طباعة</button></body></html>`);
+  w.document.close();
+},
+
+// ============ إدارة العمال ============
+renderWorkers(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h3>👥 قائمة العمال</h3>
+      ${this.workers.map(w => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #333;">
+          <span>👷 <strong>${w.username}</strong></span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn small-btn" onclick="app.editWorker('${w.id}')" style="color:var(--gold);border-color:var(--gold);">✏️ تعديل</button>
+            <button class="btn small-btn" onclick="app.deleteWorker('${w.id}')">🗑️ حذف</button>
           </div>
-        `).join('')}
-        <hr style="margin:15px 0;border-color:#333;">
-        <h4>➕ إضافة عامل جديد</h4>
+        </div>
+      `).join('')}
+      <hr style="margin:15px 0;border-color:#333;">
+      <h4>➕ إضافة عامل جديد</h4>
+      <div class="input-group">
+        <input type="text" id="new-worker-name" placeholder="اسم العامل">
+        <input type="password" id="new-worker-pass" placeholder="كلمة المرور">
+      </div>
+      <button class="btn primary-btn full-width" onclick="app.addWorker()">إضافة عامل</button>
+      <div id="edit-worker-form" style="display:none;margin-top:15px;">
+        <hr><h4>✏️ تعديل العامل</h4>
+        <input type="hidden" id="edit-worker-id">
         <div class="input-group">
-          <input type="text" id="new-worker-name" placeholder="اسم العامل">
-          <input type="password" id="new-worker-pass" placeholder="كلمة المرور">
+          <input type="text" id="edit-worker-name" placeholder="الاسم الجديد">
+          <input type="password" id="edit-worker-pass" placeholder="كلمة مرور جديدة">
         </div>
-        <button class="btn primary-btn full-width" onclick="app.addWorker()">إضافة عامل</button>
-        <div id="add-worker-error" class="error-message"></div>
-        <div id="edit-worker-form" style="display:none;margin-top:15px;">
-          <hr style="margin:15px 0;border-color:#333;">
-          <h4>✏️ تعديل العامل</h4>
-          <input type="hidden" id="edit-worker-id">
-          <div class="input-group">
-            <input type="text" id="edit-worker-name" placeholder="الاسم الجديد">
-            <input type="password" id="edit-worker-pass" placeholder="كلمة مرور جديدة (اترك فارغاً للتجاهل)">
-          </div>
-          <button class="btn primary-btn full-width" onclick="app.saveWorkerEdit()">💾 حفظ التعديلات</button>
-          <button class="btn small-btn full-width" onclick="document.getElementById('edit-worker-form').style.display='none'" style="margin-top:5px;">إلغاء</button>
-        </div>
+        <button class="btn primary-btn full-width" onclick="app.saveWorkerEdit()">💾 حفظ</button>
       </div>
-    `;
-  },
+    </div>
+  `;
+},
 
-  addWorker() {
-    const name = document.getElementById('new-worker-name').value.trim();
-    const pass = document.getElementById('new-worker-pass').value.trim();
-    const errorDiv = document.getElementById('add-worker-error');
-    if (!name || !pass) { errorDiv.textContent = '❌ الرجاء إدخال اسم وكلمة مرور'; return; }
-    this.data.workers.push({ id: 'w' + Date.now(), username: name, password: pass });
-    saveData(this.data);
-    errorDiv.textContent = '';
-    alert('✅ تم إضافة العامل بنجاح');
-    this.switchTab('workers');
-  },
+async addWorker() {
+  const name = document.getElementById('new-worker-name').value.trim();
+  const pass = document.getElementById('new-worker-pass').value.trim();
+  if (!name || !pass) { alert('❌ الرجاء إدخال اسم وكلمة مرور'); return; }
+  await addDoc(collection(db, 'workers'), { username: name, password: pass });
+  alert('✅ تم إضافة العامل');
+},
 
-  editWorker(workerId) {
-    const worker = this.data.workers.find(w => w.id === workerId);
-    if (!worker) return;
-    document.getElementById('edit-worker-id').value = workerId;
-    document.getElementById('edit-worker-name').value = worker.username;
-    document.getElementById('edit-worker-pass').value = '';
-    document.getElementById('edit-worker-form').style.display = 'block';
-    document.getElementById('edit-worker-form').scrollIntoView({ behavior: 'smooth' });
-  },
+editWorker(workerId) {
+  const w = this.workers.find(x => x.id === workerId);
+  if (!w) return;
+  document.getElementById('edit-worker-id').value = workerId;
+  document.getElementById('edit-worker-name').value = w.username;
+  document.getElementById('edit-worker-pass').value = '';
+  document.getElementById('edit-worker-form').style.display = 'block';
+},
 
-  saveWorkerEdit() {
-    const workerId = document.getElementById('edit-worker-id').value;
-    const newName = document.getElementById('edit-worker-name').value.trim();
-    const newPass = document.getElementById('edit-worker-pass').value.trim();
-    const worker = this.data.workers.find(w => w.id === workerId);
-    if (!worker) return;
-    if (!newName) { alert('❌ الرجاء إدخال اسم العامل'); return; }
-    worker.username = newName;
-    if (newPass) worker.password = newPass;
-    saveData(this.data);
-    alert('✅ تم تعديل بيانات العامل بنجاح');
-    this.switchTab('workers');
-  },
+async saveWorkerEdit() {
+  const id = document.getElementById('edit-worker-id').value;
+  const name = document.getElementById('edit-worker-name').value.trim();
+  const pass = document.getElementById('edit-worker-pass').value.trim();
+  if (!name) { alert('❌ أدخل اسماً'); return; }
+  const update = { username: name };
+  if (pass) update.password = pass;
+  await updateDoc(doc(db, 'workers', id), update);
+  alert('✅ تم التعديل');
+},
 
-  deleteWorker(workerId) {
-    if (!confirm('هل أنت متأكد من حذف هذا العامل؟')) return;
-    this.data.workers = this.data.workers.filter(w => w.id !== workerId);
-    saveData(this.data);
-    this.switchTab('workers');
-  },
+async deleteWorker(workerId) {
+  if (!confirm('متأكد من حذف العامل؟')) return;
+  await deleteDoc(doc(db, 'workers', workerId));
+},
 
-  renderMessages(container) {
-    container.innerHTML = `
-      <div class="card">
-        <h3>📩 إرسال رسالة إلى عامل</h3>
-        <div class="input-group">
-          <select id="msg-worker-select">
-            ${this.data.workers.map(w => `<option value="${w.id}">${w.username}</option>`).join('')}
-          </select>
-          <textarea id="msg-text" placeholder="نص الرسالة..."></textarea>
-        </div>
-        <button class="btn primary-btn full-width" onclick="app.sendMessage()">إرسال الرسالة</button>
-        <div id="msg-error" class="error-message"></div>
+// ============ المراسلة ============
+renderMessages(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h3>📩 إرسال رسالة</h3>
+      <div class="input-group">
+        <select id="msg-worker-select">${this.workers.map(w => `<option value="${w.id}">${w.username}</option>`).join('')}</select>
+        <textarea id="msg-text" placeholder="نص الرسالة..."></textarea>
       </div>
-      <div class="card">
-        <h3>📋 الرسائل المرسلة</h3>
-        ${this.data.messages.length === 0 
-          ? '<p style="text-align:center;color:#888;">لا توجد رسائل</p>'
-          : this.data.messages.map(m => {
-            const worker = this.data.workers.find(w => w.id === m.to);
-            return `<div style="background:#1a1a3e;padding:12px;border-radius:8px;margin-bottom:8px;border-right:3px solid ${m.received ? 'var(--success)' : 'var(--gold)'};">
-              <p><strong>إلى:</strong> ${worker ? worker.username : 'محذوف'}</p>
-              <p>${m.text}</p>
-              <small style="color:#888;">${m.date} | ${m.received ? '✅ تم الاستلام' : '⏳ في الانتظار'}</small>
-            </div>`;
-          }).join('')
-        }
+      <button class="btn primary-btn full-width" onclick="app.sendMessage()">إرسال</button>
+    </div>
+    <div class="card">
+      <h3>📋 الرسائل</h3>
+      ${this.messages.map(m => {
+        const w = this.workers.find(x => x.id === m.to);
+        return `<div style="background:#1a1a3e;padding:12px;border-radius:8px;margin-bottom:8px;border-right:3px solid ${m.received?'var(--success)':'var(--gold)'};">
+          <p><strong>إلى:</strong> ${w?w.username:'محذوف'}</p><p>${m.text}</p>
+          <small>${m.date?formatDateTime(m.date):''} | ${m.received?'✅ تم':'⏳ انتظار'}</small></div>`;
+      }).join('') || '<p style="color:#888;">لا توجد رسائل</p>'}
+    </div>
+  `;
+},
+
+async sendMessage() {
+  const to = document.getElementById('msg-worker-select').value;
+  const text = document.getElementById('msg-text').value.trim();
+  if (!text) return;
+  await addDoc(collection(db, 'messages'), { from: 'admin', to, text, received: false, date: serverTimestamp() });
+  document.getElementById('msg-text').value = '';
+},
+
+// ============ الإعدادات ============
+renderSettings(container) {
+  container.innerHTML = `
+    <div class="card">
+      <h3>⚙️ تغيير كلمة مرور المدير</h3>
+      <div class="input-group">
+        <input type="password" id="old-admin-pass" placeholder="القديمة">
+        <input type="password" id="new-admin-pass" placeholder="الجديدة">
       </div>
-    `;
-  },
+      <button class="btn primary-btn full-width" onclick="app.changeAdminPassword()">💾 حفظ</button>
+    </div>
+  `;
+},
 
-  sendMessage() {
-    const workerId = document.getElementById('msg-worker-select').value;
-    const text = document.getElementById('msg-text').value.trim();
-    const errorDiv = document.getElementById('msg-error');
-    if (!text) { errorDiv.textContent = '❌ الرجاء كتابة نص الرسالة'; return; }
-    this.data.messages.push({
-      id: Date.now(), from: 'admin', to: workerId, text: text,
-      received: false, date: formatDateTime(new Date())
-    });
-    saveData(this.data);
-    document.getElementById('msg-text').value = '';
-    errorDiv.textContent = '';
-    this.switchTab('messages');
-  },
-
-  renderSettings(container) {
-    container.innerHTML = `
-      <div class="card">
-        <h3>⚙️ تغيير كلمة مرور المدير</h3>
-        <div class="input-group">
-          <input type="password" id="old-admin-pass" placeholder="كلمة المرور القديمة">
-          <input type="password" id="new-admin-pass" placeholder="كلمة المرور الجديدة">
-        </div>
-        <button class="btn primary-btn full-width" onclick="app.changeAdminPassword()">💾 حفظ التغيير</button>
-        <div id="settings-error" class="error-message"></div>
-      </div>
-    `;
-  },
-
-  changeAdminPassword() {
-    const oldPass = document.getElementById('old-admin-pass').value.trim();
-    const newPass = document.getElementById('new-admin-pass').value.trim();
-    const errorDiv = document.getElementById('settings-error');
-    if (oldPass !== this.data.admin.password) { errorDiv.textContent = '❌ كلمة المرور القديمة غير صحيحة'; return; }
-    if (!newPass || newPass.length < 3) { errorDiv.textContent = '❌ كلمة المرور الجديدة قصيرة جداً'; return; }
-    this.data.admin.password = newPass;
-    saveData(this.data);
-    errorDiv.textContent = '';
-    alert('✅ تم تغيير كلمة المرور بنجاح');
-  },
-
+async changeAdminPassword() {
+  const old = document.getElementById('old-admin-pass').value.trim();
+  const nw = document.getElementById('new-admin-pass').value.trim();
+  if (old !== this.adminData.password) { alert('❌ كلمة مرور قديمة خاطئة'); return; }
+  if (!nw || nw.length < 3) { alert('❌ كلمة مرور قصيرة'); return; }
+  await updateDoc(doc(db, 'admin', this.adminData.id), { password: nw });
+  this.adminData.password = nw;
+  alert('✅ تم التغيير');
+},  // ============ مهام العامل ============
   renderWorkerTasks(container) {
-    const myCylinders = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
-    const myCompleted = this.data.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
+    const myCylinders = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex < c.steps.length);
+    const myCompleted = this.cylinders.filter(c => c.status === 'active' && c.currentStepIndex >= c.steps.length);
     
     container.innerHTML = `
       ${myCompleted.length > 0 ? `
@@ -773,9 +683,9 @@ const app = {
               ${c.stepStartTime ? `<div style="color:#888;font-size:0.8em;">بدأت: ${formatDateTime(c.stepStartTime)} | ${this.getDelayText(c)}</div>` : ''}
               ${delayed ? '<div style="color:var(--danger);font-weight:bold;">⚠️ متأخر +24 ساعة</div>' : ''}
               <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn primary-btn" onclick="app.nextStepForWorker(${c.id})" style="flex:1;min-width:80px;">✅ إنجاز</button>
-                <button class="btn small-btn" onclick="app.workerGoBack(${c.id})" style="flex:1;min-width:80px;">⬅️ رجوع</button>
-                <button class="btn small-btn" onclick="app.reportDefectPrompt(${c.id})" style="flex:1;min-width:80px;background:var(--danger);color:white;border-color:var(--danger);">⚠️ عيب</button>
+                <button class="btn primary-btn" onclick="app.nextStepForWorker('${c.id}')" style="flex:1;min-width:80px;">✅ إنجاز</button>
+                <button class="btn small-btn" onclick="app.workerGoBack('${c.id}')" style="flex:1;min-width:80px;">⬅️ رجوع</button>
+                <button class="btn small-btn" onclick="app.reportDefectPrompt('${c.id}')" style="flex:1;min-width:80px;background:var(--danger);color:white;border-color:var(--danger);">⚠️ عيب</button>
               </div>
             </div>
           `}).join('')
@@ -784,48 +694,52 @@ const app = {
     `;
   },
 
-  nextStepForWorker(cylId) {
-    const cyl = this.data.cylinders.find(c => c.id === cylId);
+  async nextStepForWorker(cylId) {
+    const cyl = this.cylinders.find(c => c.id === cylId);
     if (!cyl) return;
     if (cyl.currentStepIndex < cyl.steps.length) {
-      const now = new Date();
-      const endTime = now.toISOString();
-      
-      cyl.completedSteps.push({
+      const now = new Date().toISOString();
+      const completedSteps = [...(cyl.completedSteps || [])];
+      completedSteps.push({
         step: cyl.steps[cyl.currentStepIndex],
         worker: this.currentUser.username,
-        startTime: cyl.stepStartTime || endTime,
-        endTime: endTime
+        startTime: cyl.stepStartTime || now,
+        endTime: now
       });
       
-      cyl.currentStepIndex++;
+      const newIndex = cyl.currentStepIndex + 1;
+      const update = {
+        completedSteps,
+        currentStepIndex: newIndex,
+        notifiedComplete: false
+      };
       
-      if (cyl.currentStepIndex < cyl.steps.length) {
-        cyl.stepStartTime = new Date().toISOString();
+      if (newIndex < cyl.steps.length) {
+        update.stepStartTime = new Date().toISOString();
       } else {
-        cyl.stepStartTime = null;
-        cyl.notifiedComplete = false;
+        update.stepStartTime = null;
       }
       
-      saveData(this.data);
-      this.switchWorkerTab('my-tasks');
+      await updateDoc(doc(db, 'cylinders', cylId), update);
     }
   },
 
-  workerGoBack(cylId) {
-    const cyl = this.data.cylinders.find(c => c.id === cylId);
+  async workerGoBack(cylId) {
+    const cyl = this.cylinders.find(c => c.id === cylId);
     if (!cyl) return;
     if (cyl.currentStepIndex > 0) {
-      cyl.currentStepIndex--;
-      cyl.completedSteps.pop();
-      cyl.stepStartTime = new Date().toISOString();
-      saveData(this.data);
-      this.switchWorkerTab('my-tasks');
+      const completedSteps = [...(cyl.completedSteps || [])];
+      completedSteps.pop();
+      await updateDoc(doc(db, 'cylinders', cylId), {
+        currentStepIndex: cyl.currentStepIndex - 1,
+        completedSteps,
+        stepStartTime: new Date().toISOString()
+      });
     } else { alert('لا يمكن الرجوع أكثر من ذلك'); }
   },
 
   reportDefectPrompt(cylId) {
-    const cyl = this.data.cylinders.find(c => c.id === cylId);
+    const cyl = this.cylinders.find(c => c.id === cylId);
     if (!cyl) return;
     
     const reason = prompt('🔴 أدخل سبب الرفض أو العيب:');
@@ -842,32 +756,34 @@ const app = {
     }
     
     const now = formatDateTime(new Date());
-    
-    if (!cyl.defectHistory) cyl.defectHistory = [];
-    cyl.defectHistory.push({
+    const defectHistory = [...(cyl.defectHistory || [])];
+    defectHistory.push({
       reason: reason.trim(),
       returnTo: cyl.steps[idx],
       worker: this.currentUser.username,
       date: now
     });
     
-    cyl.rejectedReason = reason.trim();
-    cyl.currentStepIndex = idx;
-    cyl.status = 'active';
-    cyl.stepStartTime = new Date().toISOString();
-    
-    cyl.completedSteps = cyl.completedSteps.filter(s => {
+    const completedSteps = (cyl.completedSteps || []).filter(s => {
       const stepIndex = cyl.steps.indexOf(s.step);
       return stepIndex < idx;
     });
     
-    saveData(this.data);
-    alert(`✅ تم إعادة السلندر ${cyl.code} إلى مرحلة "${cyl.steps[idx]}"`);
-    this.switchWorkerTab('my-tasks');
+    updateDoc(doc(db, 'cylinders', cylId), {
+      defectHistory,
+      rejectedReason: reason.trim(),
+      currentStepIndex: idx,
+      status: 'active',
+      completedSteps,
+      stepStartTime: new Date().toISOString()
+    }).then(() => {
+      alert(`✅ تم إعادة السلندر ${cyl.code} إلى مرحلة "${cyl.steps[idx]}"`);
+    });
   },
 
+  // ============ رسائل العامل ============
   renderWorkerMessages(container) {
-    const myMessages = this.data.messages.filter(m => m.to === this.currentUser.id);
+    const myMessages = this.messages.filter(m => m.to === this.currentUser.id);
     container.innerHTML = `
       <div class="card">
         <h3>📥 الرسائل الواردة</h3>
@@ -876,8 +792,8 @@ const app = {
           : myMessages.map(m => `
             <div style="background:#1a1a3e;padding:15px;border-radius:8px;margin-bottom:10px;border-right:3px solid ${m.received ? 'var(--success)' : 'var(--gold)'};">
               <p>${m.text}</p>
-              <small style="color:#888;">${m.date}</small>
-              ${!m.received ? `<button class="btn small-btn" onclick="app.confirmReceipt(${m.id})" style="margin-top:8px;color:var(--gold);border-color:var(--gold);">✅ تم الاستلام</button>` : '<span style="color:var(--success);font-size:0.8em;display:block;margin-top:5px;">✓ تم الاستلام</span>'}
+              <small style="color:#888;">${m.date ? formatDateTime(m.date) : ''}</small>
+              ${!m.received ? `<button class="btn small-btn" onclick="app.confirmReceipt('${m.id}')" style="margin-top:8px;color:var(--gold);border-color:var(--gold);">✅ تم الاستلام</button>` : '<span style="color:var(--success);font-size:0.8em;display:block;margin-top:5px;">✓ تم الاستلام</span>'}
             </div>
           `).join('')
         }
@@ -885,12 +801,12 @@ const app = {
     `;
   },
 
-  confirmReceipt(msgId) {
-    const msg = this.data.messages.find(m => m.id === msgId);
-    if (msg) { msg.received = true; saveData(this.data); this.switchWorkerTab('worker-messages'); }
+  async confirmReceipt(msgId) {
+    await updateDoc(doc(db, 'messages', msgId), { received: true });
   }
 };
 
+// ============ بدء التشغيل ============
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('login-screen').classList.add('active-screen');
   document.getElementById('password-input').addEventListener('keypress', function(e) {
