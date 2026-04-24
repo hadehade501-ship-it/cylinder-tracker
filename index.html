@@ -2,138 +2,400 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>بيت السلندر السوري</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>بيت السلندر السوري | MVP</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- ========== التصميم مدمج بالكامل ========== -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-dark: #1a1a2e;
+      --bg-card: #16213e;
+      --bg-input: #0f3460;
+      --gold: #e2a629;
+      --gold-hover: #c78d1c;
+      --white: #eee;
+      --danger: #e94560;
+      --success: #4caf50;
+      --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--white);
+      direction: rtl;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 500px;
+      min-height: 100vh;
+      background-color: var(--bg-dark);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .screen {
+      display: none;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .active-screen {
+      display: block;
+    }
+
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 350px;
+      animation: fadeUp 0.5s ease;
+    }
+
+    .logo {
+      font-size: 60px;
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      font-size: 1.8em;
+      color: var(--gold);
+      margin-bottom: 5px;
+    }
+
+    .tagline {
+      color: #7a7a8a;
+      margin-bottom: 30px;
+      font-size: 0.9em;
+    }
+
+    .role-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+    }
+
+    .role-btn {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: 2px solid #333;
+      border-radius: var(--radius);
+      color: #888;
+      font-family: 'Cairo', sans-serif;
+      font-size: 1em;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .role-btn.active {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(226, 166, 41, 0.1);
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    input, textarea, select {
+      padding: 14px 16px;
+      background-color: var(--bg-input);
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+      color: var(--white);
+      font-family: 'Cairo', sans-serif;
+      font-size: 1em;
+      transition: 0.3s;
+      text-align: right;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--gold);
+      background-color: #1a1a3e;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #6a6a7a;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: 'Cairo', sans-serif;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      text-align: center;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .primary-btn {
+      background-color: var(--gold);
+      color: #1a1a2e;
+    }
+
+    .primary-btn:hover {
+      background-color: var(--gold-hover);
+    }
+
+    .small-btn {
+      padding: 6px 14px;
+      background-color: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      font-size: 0.8em;
+    }
+
+    .small-btn:hover {
+      background-color: var(--danger);
+      color: var(--white);
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid var(--gold);
+    }
+
+    .app-header h2 {
+      font-size: 1.3em;
+      color: var(--gold);
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #333;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #888;
+      padding: 10px 15px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.9em;
+      white-space: nowrap;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: 0.3s;
+    }
+
+    .tab-btn.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+
+    .tabs-container {
+      margin-top: 15px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h3 {
+      color: var(--gold);
+      margin-bottom: 15px;
+      font-size: 1.1em;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: var(--bg-card);
+      padding: 20px;
+      border-radius: var(--radius);
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-box .number {
+      font-size: 2em;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .stat-box .label {
+      color: #888;
+      font-size: 0.9em;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85em;
+    }
+
+    .data-table th {
+      text-align: right;
+      padding: 10px 5px;
+      border-bottom: 2px solid var(--gold);
+      color: var(--gold);
+    }
+
+    .data-table td {
+      padding: 10px 5px;
+      border-bottom: 1px solid #333;
+    }
+
+    .error-message {
+      color: var(--danger);
+      margin-top: 10px;
+      font-size: 0.9em;
+      min-height: 20px;
+    }
+
+    .hint {
+      color: #555;
+      font-size: 0.8em;
+      margin-top: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75em;
+      font-weight: 600;
+    }
+
+    .badge-active { background: #16213e; color: #4caf50; border: 1px solid #4caf50; }
+    .badge-rejected { background: #2e1111; color: #e94560; border: 1px solid #e94560; }
+    .badge-delivered { background: #1a3a1a; color: #4caf50; border: 1px solid #4caf50; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 400px) {
+      .tab-btn {
+        font-size: 0.8em;
+        padding: 8px 10px;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ==================== شاشة تسجيل الدخول ==================== -->
-  <div id="loginScreen" class="screen active">
-    <h1>⚙️ بيت السلندر</h1>
-    <input type="text" id="username" placeholder="اسم المستخدم" />
-    <input type="password" id="password" placeholder="كلمة المرور" />
-    <button onclick="login()">دخول</button>
-    <p id="loginError" style="color:red;"></p>
-  </div>
+  <!-- حاوية التطبيق الرئيسية -->
+  <div id="app">
 
-  <!-- ==================== شاشة المدير ==================== -->
-  <div id="adminScreen" class="screen">
-    <h2>👑 لوحة المدير</h2>
-    <nav>
-      <button onclick="showAdminTab('stats')">📊 الإحصائيات</button>
-      <button onclick="showAdminTab('addWorker')">👤 إضافة عامل</button>
-      <button onclick="showAdminTab('addCylinder')">🆕 سلندر جديد</button>
-      <button onclick="showAdminTab('cylinders')">📋 السلندرات</button>
-      <button onclick="showAdminTab('messages')">📩 المراسلة</button>
-      <button onclick="showAdminTab('settings')">⚙️ الإعدادات</button>
-      <button onclick="logout()">🚪 خروج</button>
-    </nav>
+    <!-- شاشة تسجيل الدخول -->
+    <section id="login-screen" class="screen active-screen">
+      <div class="login-container">
+        <div class="logo">⚙️</div>
+        <h1>بيت السلندر السوري</h1>
+        <p class="tagline">نظام التتبع الذكي</p>
+        
+        <div class="role-selector">
+          <button id="manager-role-btn" class="role-btn active" onclick="app.selectRole('manager')">👔 مدير</button>
+          <button id="worker-role-btn" class="role-btn" onclick="app.selectRole('worker')">👷 عامل</button>
+        </div>
 
-    <!-- تبويب الإحصائيات -->
-    <div id="tab-stats" class="tab">
-      <h3>إحصائيات اليوم</h3>
-      <p>🟢 نشط: <span id="statActive">0</span></p>
-      <p>🔴 مرفوض: <span id="statRejected">0</span></p>
-      <p>✅ مسلَّم: <span id="statDelivered">0</span></p>
-    </div>
+        <div class="input-group">
+          <input type="text" id="username-input" placeholder="اسم المستخدم" autocomplete="off">
+          <input type="password" id="password-input" placeholder="كلمة المرور">
+        </div>
 
-    <!-- تبويب إضافة عامل -->
-    <div id="tab-addWorker" class="tab" style="display:none;">
-      <h3>إضافة عامل جديد</h3>
-      <input type="text" id="newWorkerName" placeholder="اسم العامل" />
-      <input type="password" id="newWorkerPass" placeholder="كلمة المرور" />
-      <button onclick="addWorker()">إضافة</button>
-      <p id="workerMsg"></p>
-      <hr />
-      <h3>قائمة العمال</h3>
-      <ul id="workersList"></ul>
-    </div>
-
-    <!-- تبويب إضافة سلندر -->
-    <div id="tab-addCylinder" class="tab" style="display:none;">
-      <h3>إضافة سلندر جديد</h3>
-      <select id="cylType">
-        <option value="iron">حديد</option>
-        <option value="chrome">كروم</option>
-      </select>
-      <input type="text" id="engravedCode" placeholder="الكود المنقوش" />
-      <input type="text" id="clientName" placeholder="اسم المطبعة" />
-      <input type="text" id="printType" placeholder="نوع الطبعة" />
-      <input type="date" id="entryDate" />
-      <input type="date" id="expectedDate" />
-      <textarea id="notes" placeholder="ملاحظات"></textarea>
-      <button onclick="addCylinder()">إضافة</button>
-      <p id="cylMsg"></p>
-    </div>
-
-    <!-- تبويب جميع السلندرات -->
-    <div id="tab-cylinders" class="tab" style="display:none;">
-      <h3>جميع السلندرات</h3>
-      <table id="cylTable">
-        <thead>
-          <tr>
-            <th>الكود</th>
-            <th>النوع</th>
-            <th>المرحلة</th>
-            <th>الحالة</th>
-            <th>إجراء</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- تبويب المراسلة -->
-    <div id="tab-messages" class="tab" style="display:none;">
-      <h3>إرسال رسالة</h3>
-      <select id="msgWorkerSelect"></select>
-      <textarea id="msgText" placeholder="نص الرسالة"></textarea>
-      <button onclick="sendMessage()">إرسال</button>
-      <p id="msgStatus"></p>
-    </div>
-
-    <!-- تبويب الإعدادات -->
-    <div id="tab-settings" class="tab" style="display:none;">
-      <h3>تغيير كلمة المرور</h3>
-      <input type="password" id="oldPass" placeholder="كلمة المرور القديمة" />
-      <input type="password" id="newPass" placeholder="الجديدة" />
-      <button onclick="changeAdminPass()">حفظ</button>
-      <p id="settingsMsg"></p>
-    </div>
-  </div>
-
-  <!-- ==================== شاشة العامل ==================== -->
-  <div id="workerScreen" class="screen">
-    <h2>👷 العامل</h2>
-    <nav>
-      <button onclick="showWorkerTab('process')">🔧 عمليتي</button>
-      <button onclick="showWorkerTab('inbox')">📥 الرسائل</button>
-      <button onclick="logout()">🚪 خروج</button>
-    </nav>
-
-    <!-- تبويب العملية -->
-    <div id="tab-process" class="tab">
-      <h3>المرحلة الحالية</h3>
-      <div id="stepTracker"></div>
-      <p id="currentStepText"></p>
-      <button id="nextBtn" onclick="nextStep()">✅ إنجاز المرحلة</button>
-      <button id="backBtn" onclick="prevStep()">⬅️ رجوع خطوة</button>
-      <button id="rejectBtn" onclick="reportDefect()">⚠️ إبلاغ عن عيب</button>
-      <div id="defectReasonDiv" style="display:none;">
-        <textarea id="defectReason" placeholder="سبب الرفض"></textarea>
-        <button onclick="confirmReject()">تأكيد الرفض</button>
+        <button class="btn primary-btn full-width" onclick="app.login()">تسجيل الدخول</button>
+        <div id="login-error" class="error-message"></div>
+        
+        <p class="hint">للتجربة: مدير (1234) | عامل (أي اسم)</p>
       </div>
-    </div>
+    </section>
 
-    <!-- تبويب الرسائل -->
-    <div id="tab-inbox" class="tab" style="display:none;">
-      <h3>صندوق الرسائل</h3>
-      <ul id="inboxList"></ul>
-    </div>
+    <!-- شاشة لوحة تحكم المدير -->
+    <section id="admin-screen" class="screen">
+      <header class="app-header">
+        <h2>👑 لوحة المدير</h2>
+        <div>
+          <span id="admin-name-display"></span>
+          <button class="btn small-btn" onclick="app.logout()">خروج</button>
+        </div>
+      </header>
+      <nav class="tab-nav">
+        <button class="tab-btn active" onclick="app.switchTab('dashboard')">📊 الإحصائيات</button>
+        <button class="tab-btn" onclick="app.switchTab('add-cylinder')">➕ سلندر جديد</button>
+        <button class="tab-btn" onclick="app.switchTab('manage-cylinders')">📋 السلندرات</button>
+        <button class="tab-btn" onclick="app.switchTab('workers')">👥 العمال</button>
+        <button class="tab-btn" onclick="app.switchTab('messages')">📩 الرسائل</button>
+        <button class="tab-btn" onclick="app.switchTab('settings')">⚙️ الإعدادات</button>
+      </nav>
+      <main id="admin-tabs-container" class="tabs-container">
+        <!-- المحتوى الديناميكي يظهر هنا عبر JavaScript -->
+      </main>
+    </section>
+
+    <!-- شاشة العامل -->
+    <section id="worker-screen" class="screen">
+      <header class="app-header">
+        <h2>👷 مساحة العامل</h2>
+        <div>
+          <span id="worker-name-display"></span>
+          <button class="btn small-btn" onclick="app.logout()">خروج</button>
+        </div>
+      </header>
+      <nav class="tab-nav">
+        <button class="tab-btn active" onclick="app.switchWorkerTab('my-tasks')">🔧 مهامي</button>
+        <button class="tab-btn" onclick="app.switchWorkerTab('worker-messages')">📥 الرسائل</button>
+      </nav>
+      <main id="worker-tabs-container" class="tabs-container">
+        <!-- المحتوى الديناميكي يظهر هنا عبر JavaScript -->
+      </main>
+    </section>
   </div>
 
+  <!-- ملف الجافاسكريبت -->
   <script src="app.js"></script>
 </body>
 </html>
