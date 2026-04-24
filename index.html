@@ -8,7 +8,6 @@
   <meta name="theme-color" content="#1a1a2e">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
   
-  <!-- ========== التصميم مدمج بالكامل ========== -->
   <style>
     * {
       margin: 0;
@@ -327,10 +326,8 @@
 </head>
 <body>
 
-  <!-- حاوية التطبيق الرئيسية -->
   <div id="app">
 
-    <!-- شاشة تسجيل الدخول -->
     <section id="login-screen" class="screen active-screen">
       <div class="login-container">
         <div class="logo">⚙️</div>
@@ -354,7 +351,6 @@
       </div>
     </section>
 
-    <!-- شاشة لوحة تحكم المدير -->
     <section id="admin-screen" class="screen">
       <header class="app-header">
         <h2>👑 لوحة المدير</h2>
@@ -372,11 +368,9 @@
         <button class="tab-btn" onclick="app.switchTab('settings')">⚙️ الإعدادات</button>
       </nav>
       <main id="admin-tabs-container" class="tabs-container">
-        <!-- المحتوى الديناميكي يظهر هنا عبر JavaScript -->
       </main>
     </section>
 
-    <!-- شاشة العامل -->
     <section id="worker-screen" class="screen">
       <header class="app-header">
         <h2>👷 مساحة العامل</h2>
@@ -390,12 +384,10 @@
         <button class="tab-btn" onclick="app.switchWorkerTab('worker-messages')">📥 الرسائل</button>
       </nav>
       <main id="worker-tabs-container" class="tabs-container">
-        <!-- المحتوى الديناميكي يظهر هنا عبر JavaScript -->
       </main>
     </section>
   </div>
 
-  <!-- ملف الجافاسكريبت -->
-  <script src="app.js"></script>
+  <script src="app.js" type="module"></script>
 </body>
 </html>
