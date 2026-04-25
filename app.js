@@ -354,9 +354,11 @@ const app = {
     this.renderManagecylinders(document.getElementById('admin-tabs-container'));
   },
 
+  // ============ دالة الطباعة الجديدة (تظهر داخل التطبيق) ============
   printCard(cylId) {
     const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
+
     const allSteps = c.steps.map((step, index) => {
       let status = '⏳ متبقي', bg = '#fff3cd', worker = '-', startTime = '-', endTime = '-', duration = '-';
       if (index < c.currentStepIndex) {
@@ -374,34 +376,47 @@ const app = {
       }
       return { step, status, bg, worker, startTime, endTime, duration };
     });
+
     const stepsHTML = allSteps.map(s => `<tr style="background:${s.bg};"><td>${s.step}</td><td>${s.status}</td><td>${s.worker}</td><td>${s.startTime}</td><td>${s.endTime}</td><td>${s.duration}</td></tr>`).join('');
-    const w = window.open('', '_blank', 'width=800,height=700');
-    w.document.write(`<html dir="rtl"><head><title>بطاقة ${c.code}</title>
-      <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-        body{font-family:'Cairo',sans-serif;padding:20px;color:#1a1a2e;max-width:800px;margin:auto;font-size:0.9em;}
-        .header{text-align:center;border-bottom:4px solid #e2a629;padding-bottom:15px;margin-bottom:20px;}
-        .header h1{color:#1a1a2e;margin:0;font-size:1.5em;}.header .sub{color:#e2a629;font-weight:700;}
-        .code-big{font-size:1.6em;font-weight:900;background:#1a1a2e;color:#e2a629;padding:10px 20px;border-radius:10px;display:inline-block;margin:10px 0;}
-        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:20px;}
-        table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.8em;}
-        th{background:#1a1a2e;color:#fff;padding:8px;}td{padding:7px;border:1px solid #ddd;text-align:center;}
-        .btn-print{background:#e2a629;color:#1a1a2e;padding:12px 35px;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin:20px auto;display:block;font-family:'Cairo',sans-serif;}
-        @media print{.btn-print{display:none;}}</style></head><body>
-        <div class="header"><h1>⚙️ بيت السلندر السوري</h1><p class="sub">بطاقة تشغيل سلندر</p></div>
-        <div style="text-align:center;"><div class="code-big">${c.code}</div></div>
-        <div class="info-grid">
-          <p><strong>📦 النوع:</strong> ${c.type==='iron'?'حديد (10 مراحل)':'كروم (9 مراحل)'}</p>
-          <p><strong>🏢 الزبون:</strong> ${c.client}</p>
-          <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
-          <p><strong>📅 تاريخ الدخول:</strong> ${formatDateTime(c.createdAt)}</p>
-          <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
-          ${c.status==='delivered'?`<p><strong>🚚 المستلم:</strong> ${c.deliveredTo}</p><p><strong>📅 التسليم:</strong> ${formatDateTime(c.deliveredDate)}</p>`:''}
-        </div>
-        <h4 style="color:#e2a629;">📋 المراحل مع التوقيت:</h4>
-        <table><thead><tr><th>المرحلة</th><th>الحالة</th><th>العامل</th><th>البداية</th><th>النهاية</th><th>المدة</th></tr></thead><tbody>${stepsHTML}</tbody></table>
-        <button class="btn-print" onclick="window.print()">🖨️ طباعة</button></body></html>`);
-    w.document.close();
+
+    // إنشاء شاشة داخلية للبطاقة
+    const overlay = document.createElement('div');
+    overlay.id = 'printCardOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;overflow-y:auto;padding:15px;font-family:Cairo,sans-serif;color:#1a1a2e;direction:rtl;text-align:right;';
+    
+    overlay.innerHTML = `
+      <button onclick="document.getElementById('printCardOverlay').remove()" style="position:fixed;top:10px;right:10px;background:var(--danger);color:white;border:none;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer;z-index:1;">✕</button>
+      <div style="text-align:center;border-bottom:4px solid #e2a629;padding-bottom:10px;margin-bottom:15px;margin-top:20px;">
+        <h1 style="color:#1a1a2e;margin:0;font-size:1.3em;">⚙️ بيت السلندر السوري</h1>
+        <p style="color:#e2a629;font-weight:700;margin:5px 0;">بطاقة تشغيل سلندر</p>
+      </div>
+      <div style="text-align:center;margin:10px 0;">
+        <span style="font-size:1.4em;font-weight:900;background:#1a1a2e;color:#e2a629;padding:8px 16px;border-radius:10px;">${c.code}</span>
+      </div>
+      <div style="background:#f5f5f5;padding:12px;border-radius:10px;margin-bottom:15px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.85em;">
+        <p><strong>📦 النوع:</strong> ${c.type==='iron'?'حديد (10 مراحل)':'كروم (9 مراحل)'}</p>
+        <p><strong>🏢 الزبون:</strong> ${c.client}</p>
+        <p><strong>🖨️ الطبعة:</strong> ${c.print}</p>
+        <p><strong>📅 تاريخ الدخول:</strong> ${formatDateTime(c.createdAt)}</p>
+        <p><strong>📊 الحالة:</strong> ${this.getStatusText(c.status)}</p>
+        ${c.status==='delivered'?`<p><strong>🚚 المستلم:</strong> ${c.deliveredTo}</p><p><strong>📅 التسليم:</strong> ${formatDateTime(c.deliveredDate)}</p>`:''}
+      </div>
+      <h4 style="color:#e2a629;margin:10px 0;">📋 المراحل مع التوقيت:</h4>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.75em;">
+          <thead><tr style="background:#1a1a2e;color:#fff;"><th>المرحلة</th><th>الحالة</th><th>العامل</th><th>البداية</th><th>النهاية</th><th>المدة</th></tr></thead>
+          <tbody>${stepsHTML}</tbody>
+        </table>
+      </div>
+      <div style="text-align:center;margin-top:20px;">
+        <button onclick="window.print()" style="background:#e2a629;color:#1a1a2e;padding:12px 35px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:Cairo,sans-serif;font-size:1em;">🖨️ طباعة</button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
   },
+
+  // ============ باقي الدوال كما هي ============
 
   renderWorkers(container) {
     container.innerHTML = `
