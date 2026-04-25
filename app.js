@@ -354,7 +354,7 @@ const app = {
     this.renderManagecylinders(document.getElementById('admin-tabs-container'));
   },
 
-  // ============ دالة الطباعة الجديدة (تظهر داخل التطبيق) ============
+  // ============ طباعة داخل التطبيق ============
   printCard(cylId) {
     const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
@@ -379,13 +379,12 @@ const app = {
 
     const stepsHTML = allSteps.map(s => `<tr style="background:${s.bg};"><td>${s.step}</td><td>${s.status}</td><td>${s.worker}</td><td>${s.startTime}</td><td>${s.endTime}</td><td>${s.duration}</td></tr>`).join('');
 
-    // إنشاء شاشة داخلية للبطاقة
     const overlay = document.createElement('div');
     overlay.id = 'printCardOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;overflow-y:auto;padding:15px;font-family:Cairo,sans-serif;color:#1a1a2e;direction:rtl;text-align:right;';
     
     overlay.innerHTML = `
-      <button onclick="document.getElementById('printCardOverlay').remove()" style="position:fixed;top:10px;right:10px;background:var(--danger);color:white;border:none;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer;z-index:1;">✕</button>
+      <button onclick="document.getElementById('printCardOverlay').remove()" style="position:fixed;top:10px;right:10px;background:#e94560;color:white;border:none;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer;z-index:1;">✕</button>
       <div style="text-align:center;border-bottom:4px solid #e2a629;padding-bottom:10px;margin-bottom:15px;margin-top:20px;">
         <h1 style="color:#1a1a2e;margin:0;font-size:1.3em;">⚙️ بيت السلندر السوري</h1>
         <p style="color:#e2a629;font-weight:700;margin:5px 0;">بطاقة تشغيل سلندر</p>
@@ -412,11 +411,8 @@ const app = {
         <button onclick="window.print()" style="background:#e2a629;color:#1a1a2e;padding:12px 35px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:Cairo,sans-serif;font-size:1em;">🖨️ طباعة</button>
       </div>
     `;
-
     document.body.appendChild(overlay);
   },
-
-  // ============ باقي الدوال كما هي ============
 
   renderWorkers(container) {
     container.innerHTML = `
