@@ -1,5 +1,6 @@
 // ==========================================
 // تطبيق بيت السلندر السوري - MVP نهائي
+// مع سجل الرفض في بطاقة الطباعة
 // ==========================================
 
 const DEFAULT_DATA = {
@@ -246,23 +247,49 @@ const app = {
     this.renderDashboard(document.getElementById('admin-tabs-container'));
   },
 
+  // ============ بطاقة الطباعة مع سجل الرفض ============
   printCard(cylId) {
     const c = this.data.cylinders.find(c => c.id === cylId);
     if (!c) return;
+
+    // جدول المراحل
     let stepsHTML = c.steps.map((s, i) => {
       let bg = i < c.currentStepIndex ? '#d4edda' : i === c.currentStepIndex ? '#cce5ff' : '#fff3cd';
-      let st = i < c.currentStepIndex ? '✅' : i === c.currentStepIndex ? '🔄' : '⏳';
+      let st = i < c.currentStepIndex ? '✅ منجز' : i === c.currentStepIndex ? '🔄 الحالية' : '⏳ متبقي';
       return `<tr style="background:${bg}"><td>${s}</td><td>${st}</td></tr>`;
     }).join('');
-    
+
+    // سجل الرفض والعودة
+    let defectHTML = '';
+    if (c.defectHistory && c.defectHistory.length > 0) {
+      defectHTML = `
+        <h4 style="color:red;margin-top:15px;">⚠️ سجل الرفض والعودة:</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:0.8em;margin-top:5px;">
+          <thead><tr style="background:#e94560;color:white;"><th>السبب</th><th>العودة إلى</th><th>العامل</th><th>التاريخ</th></tr></thead>
+          <tbody>
+            ${c.defectHistory.map(d => `<tr><td>${d.reason}</td><td>${d.returnTo}</td><td>${d.worker}</td><td>${new Date(d.date).toLocaleString('ar-SY')}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;overflow-y:auto;padding:20px;font-family:Cairo;color:#1a1a2e;direction:rtl;';
-    overlay.innerHTML = `<button onclick="this.parentElement.remove()" style="position:fixed;top:10px;right:10px;background:red;color:white;border:none;border-radius:50%;width:35px;height:35px;font-size:20px;">✕</button>
-      <h2 style="text-align:center;color:#e2a629;">⚙️ بيت السلندر</h2>
+    overlay.innerHTML = `
+      <button onclick="this.parentElement.remove()" style="position:fixed;top:10px;right:10px;background:red;color:white;border:none;border-radius:50%;width:35px;height:35px;font-size:20px;">✕</button>
+      <h2 style="text-align:center;color:#e2a629;">⚙️ بيت السلندر السوري</h2>
       <h1 style="text-align:center;background:#1a1a2e;color:#e2a629;padding:10px;border-radius:10px;">${c.code}</h1>
       <p><strong>النوع:</strong> ${c.type==='iron'?'حديد':'كروم'} | <strong>الزبون:</strong> ${c.client} | <strong>الطبعة:</strong> ${c.print}</p>
-      <table style="width:100%;border-collapse:collapse;margin-top:10px;"><thead><tr style="background:#1a1a2e;color:white;"><th>المرحلة</th><th>الحالة</th></tr></thead><tbody>${stepsHTML}</tbody></table>
-      <button onclick="window.print()" style="background:#e2a629;color:#1a1a2e;padding:10px 30px;border:none;border-radius:10px;font-weight:bold;display:block;margin:20px auto;font-family:Cairo;">🖨️ طباعة</button>`;
+      <p><strong>الحالة:</strong> ${c.status==='active'?'نشط':c.status==='rejected'?'مرفوض':'مُسلَّم'} | <strong>التاريخ:</strong> ${formatDateTime(c.createdAt)}</p>
+      ${c.status==='delivered' ? `<p><strong>🚚 المستلم:</strong> ${c.deliveredTo} | <strong>📅 التسليم:</strong> ${formatDateTime(c.deliveredDate)}</p>` : ''}
+      <h4 style="color:#e2a629;margin-top:15px;">📋 المراحل:</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:0.8em;">
+        <thead><tr style="background:#1a1a2e;color:white;"><th>المرحلة</th><th>الحالة</th></tr></thead>
+        <tbody>${stepsHTML}</tbody>
+      </table>
+      ${defectHTML}
+      <button onclick="window.print()" style="background:#e2a629;color:#1a1a2e;padding:10px 30px;border:none;border-radius:10px;font-weight:bold;display:block;margin:20px auto;font-family:Cairo;">🖨️ طباعة</button>
+    `;
     document.body.appendChild(overlay);
   },
 
