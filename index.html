@@ -146,7 +146,6 @@
 </div>
 
 <!-- ===== المودالات ===== -->
-<!-- (جميع المودالات بقيت كما هي بدون تغيير) -->
 <!-- إضافة سلندر -->
 <div class="modal-overlay" id="modal-addCyl">
   <div class="modal">
@@ -313,7 +312,7 @@
 <script type="module" src="app.js"></script>
 <script type="module">
 // ============================================================
-// واجهة المستخدم الكاملة (معدّلة)
+// واجهة المستخدم الكاملة (معدّلة - زر الإشعارات مصلح)
 // ============================================================
 
 async function waitSCH(ms = 5000) {
@@ -398,15 +397,30 @@ const UI = (() => {
     if (notifOpen) toggleNotifs();
   }
 
+  // ===== زر الإشعارات (مُصلح) =====
   async function toggleNotifs() {
-    notifOpen = !notifOpen;
     const panel = document.getElementById('notifPanel');
-    panel.classList.toggle('open', notifOpen);
+    if (!panel) return;
+    
+    notifOpen = !notifOpen;
+    
     if (notifOpen) {
-      const uid = currentUser.role === 'manager' ? 'admin' : currentUser.id;
-      const notifs = await SCH.getMyNotifs(uid);
-      document.getElementById('notifList').innerHTML = notifs.length ? notifs.map(n => `<div class="notif-item ${n.type}">${n.text}<div class="notif-time">${SCH.fmtTime(n.time)}</div></div>`).join('') : '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">لا توجد إشعارات</div></div>';
-      await SCH.markNotifsRead(uid);
+      try {
+        const uid = currentUser.role === 'manager' ? 'admin' : currentUser.id;
+        const notifs = await SCH.getMyNotifs(uid);
+        const listEl = document.getElementById('notifList');
+        if (!listEl) return;
+        listEl.innerHTML = notifs.length 
+          ? notifs.map(n => `<div class="notif-item ${n.type}">${n.text}<div class="notif-time">${SCH.fmtTime(n.time)}</div></div>`).join('')
+          : '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">لا توجد إشعارات</div></div>';
+        await SCH.markNotifsRead(uid);
+        panel.classList.add('open');
+      } catch(e) {
+        console.error('خطأ في الإشعارات:', e);
+        showToast('تعذر تحميل الإشعارات');
+      }
+    } else {
+      panel.classList.remove('open');
     }
   }
 
@@ -419,7 +433,6 @@ const UI = (() => {
     const lateEl = document.getElementById('lateAlert');
     lateEl.innerHTML = stats.lateCyls.length ? `<div class="alert alert-warn" style="margin-bottom:12px">⏰ تنبيه: ${stats.lateCyls.length} سلندر تجاوز موعد التسليم!<br><small>${stats.lateCyls.map(c => c.code).join(' · ')}</small></div>` : '';
     
-    // بطاقات إحصائية قابلة للضغط
     document.getElementById('statsGrid').innerHTML = `
       <div class="stat-card" onclick="UI.goToFilter('all')"><div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي (${stats.total})</div></div>
       <div class="stat-card blue" onclick="UI.goToFilter('active')"><div class="stat-num">${stats.active}</div><div class="stat-label">نشط (${stats.active})</div></div>
@@ -449,11 +462,9 @@ const UI = (() => {
     }).join('') : '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>';
   }
 
-  // ===== التنقل من البطاقات =====
   function goToFilter(filter) { showPage('cylinders'); setTimeout(() => { currentCylFilter = filter; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); const chip = document.querySelector(`.filter-chip[onclick*="'${filter}'"]`); if (chip) chip.classList.add('active'); renderCyls(); }, 200); }
   function goToWorkerCyls(wid) { showPage('cylinders'); setTimeout(() => { currentCylFilter = 'all'; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); const chip = document.querySelector('.filter-chip[onclick*="all"]'); if (chip) chip.classList.add('active'); document.getElementById('cylSearch').value = wid; renderCyls(); }, 200); }
 
-  // ===== السلندرات =====
   function filterCyls(f, el) { currentCylFilter = f; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); el.classList.add('active'); renderCyls(); }
 
   function renderCyls() {
@@ -465,7 +476,6 @@ const UI = (() => {
     else if (currentCylFilter !== 'all') list = list.filter(c => c.status === currentCylFilter);
     if (q) list = list.filter(c => c.code.toLowerCase().includes(q) || c.press.toLowerCase().includes(q) || (c.edition || '').toLowerCase().includes(q));
     
-    // تحديث العدادات
     updateFilterCounts();
     
     const el = document.getElementById('cylList');
@@ -506,10 +516,7 @@ const UI = (() => {
 
   let isManager = false;
 
-  // ===== حذف سلندر =====
   async function deleteCyl(cylId) { await SCH.deleteCylinderById(cylId); }
-
-  // ===== حذف عامل =====
   async function deleteWorker(wid) { await SCH.deleteWorkerById(wid); renderWorkers(); }
 
   async function showAddCyl() {
@@ -596,7 +603,6 @@ const UI = (() => {
   async function showReinstate() { const c = await SCH.getCylById(activeCylId); document.getElementById('ri_stage').innerHTML = c.stages.map((s, i) => `<option value="${i}">${i+1}. ${s}</option>`).join(''); openModal('reinstate'); }
   async function confirmReinstate() { const idx = parseInt(document.getElementById('ri_stage').value); await SCH.reinstateCyl(activeCylId, idx); closeModal('reinstate'); closeModal('cylDetail'); showToast('🔄 تم إعادة التشغيل'); }
 
-  // بطاقة الطباعة
   async function showPrintCard() {
     const c = await SCH.getCylById(activeCylId);
     const totalTime = c.history?.length > 1 ? new Date(c.history[c.history.length-1].time) - new Date(c.history[0].time) : null;
@@ -622,7 +628,6 @@ const UI = (() => {
     openModal('printCard');
   }
 
-  // العمال
   async function renderWorkers() {
     const workers = await SCH.getWorkers();
     const el = document.getElementById('workerList');
@@ -642,28 +647,24 @@ const UI = (() => {
   function showChangeWPass(wid) { document.getElementById('cwp_id').value = wid; document.getElementById('cwp_pass').value = ''; openModal('changeWPass'); }
   async function confirmChangeWPass() { const wid = document.getElementById('cwp_id').value, pass = document.getElementById('cwp_pass').value.trim(); if (!pass) { showToast('أدخل كلمة المرور'); return; } await SCH.changeWorkerPass(wid, pass); closeModal('changeWPass'); showToast('✅ تم تغيير كلمة المرور'); }
 
-  // رسائل
   async function renderMgrMsgs() { const [msgs, workers] = await Promise.all([SCH.getMessages(), SCH.getWorkers()]); const el = document.getElementById('msgListMgr'); if (!msgs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">✉️</div><div class="empty-text">لا توجد رسائل</div></div>'; return; } el.innerHTML = msgs.map(m => { const w = workers.find(x => x.id === m.to); return `<div class="msg-card ${!m.read?'unread':''}"><div class="msg-header"><span class="msg-from">إلى: ${w?.name || m.to}</span><span class="msg-time">${SCH.fmtTime(m.time)}</span></div><div class="msg-text">${m.text}</div><div class="msg-status">${m.confirmed ? '✅ قرأها' : '⏳ لم يُقرأ بعد'}</div></div>`; }).join(''); }
   async function showSendMsg() { const workers = await SCH.getWorkers(); document.getElementById('sm_to').innerHTML = workers.map(w => `<option value="${w.id}">${w.name}</option>`).join(''); document.getElementById('sm_text').value = ''; openModal('sendMsg'); }
   async function showSendMsgTo(wid) { await showSendMsg(); document.getElementById('sm_to').value = wid; }
   async function sendMsg() { const to = document.getElementById('sm_to').value, text = document.getElementById('sm_text').value.trim(); if (!to || !text) { showToast('اختر عامل واكتب رسالة'); return; } await SCH.sendMessage(to, currentUser.id, currentUser.name, text); closeModal('sendMsg'); renderMgrMsgs(); showToast('✅ تم إرسال الرسالة'); }
 
-  // إعدادات
   async function renderSettings() { const workers = await SCH.getWorkers(); document.getElementById('s_worker').innerHTML = workers.map(w => `<option value="${w.id}">${w.name}</option>`).join(''); }
   async function saveMgrPass() { const old = document.getElementById('s_old').value.trim(), nw = document.getElementById('s_new').value.trim(), conf = document.getElementById('s_conf').value.trim(); if (!old || !nw) { showToast('أدخل كلمات المرور'); return; } if (nw !== conf) { showToast('كلمتا المرور غير متطابقتين'); return; } const r = await SCH.changePass(currentUser.id, old, nw); if (!r.ok) { showToast(r.msg); return; } ['s_old','s_new','s_conf'].forEach(id => document.getElementById(id).value = ''); showToast('✅ تم تغيير كلمة المرور'); }
   async function saveWorkerPass() { const wid = document.getElementById('s_worker').value, pass = document.getElementById('s_wpass').value.trim(); if (!wid || !pass) { showToast('اختر عامل وأدخل كلمة المرور'); return; } await SCH.changeWorkerPass(wid, pass); document.getElementById('s_wpass').value = ''; showToast('✅ تم تغيير كلمة مرور العامل'); }
 
-  // صفحة العامل
   function renderWorkerShift() { const shift = SCH.SHIFTS[currentUser.shift || SCH.getCurrentShift()]; const el = document.getElementById('workerShiftBadge'); if (el) el.innerHTML = `<div class="alert alert-info">وردية: ${shift.icon} ${shift.label} · ${shift.time}</div>`; }
   function renderWorkerCyls() {
     const myId = currentUser.id;
-    // العامل يرى فقط السلندرات النشطة + المسندة إليه أو المفتوحة
     const list = cylinders.filter(c => c.status !== 'rejected' && c.status !== 'delivered' && (c.assignedWorker === myId || !c.assignedWorker || c.history?.some(h => h.by === myId)));
     const el = document.getElementById('workerCylList');
     if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔩</div><div class="empty-text">لا توجد سلندرات مُسندة إليك</div></div>'; return; }
     el.innerHTML = list.map(c => {
       const stuck = SCH.isStuck(c);
-      const prog = Math.round(((c.currentStageIndex + 1) / c.stages.length) * 100);
+      const prog = Math.round(((c.currentStageIndex + 1) / c.steps.length) * 100);
       const sc = stuck ? 'late' : 'active';
       return `<div class="cyl-card ${sc}" onclick="UI.openCylDetail('${c.id}')"><div class="cyl-header"><div><div class="cyl-code">${c.code}</div><div class="cyl-meta">${c.press}${stuck ? ' · ⏰ متأخر' : ''}</div></div><span class="status-badge status-${sc}">${stuck ? '⏰ متأخر بالمرحلة' : '🔵 نشط'}</span></div><div class="progress-wrap"><div class="progress-label"><span style="color:var(--gold);font-weight:700">${c.stages[c.currentStageIndex]}</span><span>${prog}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></div></div>`;
     }).join('');
