@@ -1,9 +1,9 @@
 // ============================================================
-// بيت السلندر السوري - المنطق الكامل مع Firebase
+// بيت السلندر السوري - المنطق الكامل مع Firebase (مُعدّل)
 // ============================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 // ===== Firebase Config =====
 const firebaseConfig = {
@@ -37,7 +37,7 @@ function fmtTime(ts) {
 }
 
 function fmtDuration(ms) {
-  if (!ms || ms < 0) return '-';
+  if (!ms || ms <= 0) return '-';
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
@@ -50,7 +50,7 @@ function calcDuration(start, end) {
   if (!start || !end) return null;
   const s = start?.toDate ? start.toDate() : new Date(start);
   const e = end?.toDate ? end.toDate() : new Date(end);
-  return e - s;
+  return Math.max(0, e - s);
 }
 
 function getCurrentShift() {
@@ -65,12 +65,22 @@ function isLate(deliveryDate) {
   return new Date() > new Date(deliveryDate);
 }
 
-function statusLabel(s, late) {
-  if (late && s === 'active') return '⏰ متأخر';
+function isStuck(cyl) {
+  if (cyl.status !== 'active') return false;
+  if (!cyl.stageStartTime) return false;
+  const start = new Date(cyl.stageStartTime);
+  const diffHours = (new Date() - start) / (1000 * 60 * 60);
+  return diffHours >= 24;
+}
+
+function statusLabel(s, late, stuck) {
+  if (stuck) return '⏰ متأخر بالمرحلة';
+  if (late && s === 'active') return '⏰ متأخر بالتسليم';
   return s === 'active' ? '🔵 نشط' : s === 'rejected' ? '⚠ مرفوض' : '✅ مُسلَّم';
 }
 
-function statusClass(s, late) {
+function statusClass(s, late, stuck) {
+  if (stuck) return 'late';
   if (late && s === 'active') return 'late';
   return s;
 }
@@ -110,6 +120,13 @@ async function addWorker(name, username, pass, shift, machine) {
   return { ok: true };
 }
 
+async function deleteWorkerById(wid) {
+  if (!confirm('⚠️ هل أنت متأكد من حذف هذا العامل؟ لا يمكن التراجع.')) return { ok: false, msg: 'تم الإلغاء' };
+  await deleteDoc(doc(db, 'users', wid));
+  await addNotif('admin', `تم حذف العامل ${wid}`, 'warning');
+  return { ok: true };
+}
+
 async function changePass(userId, oldPass, newPass) {
   const snap = await getDoc(doc(db, 'users', userId));
   if (!snap.exists()) return { ok: false, msg: 'المستخدم غير موجود' };
@@ -133,7 +150,7 @@ async function addCylinder(data) {
     deliveryDate: data.deliveryDate || '', notes: data.notes || '',
     stages, currentStageIndex: 0, status: 'active',
     stageStartTime: now,
-    history: [{ stage: 'دخول المعمل', time: now, by: data.by, byName: data.byName || 'المدير', note: '', shift: getCurrentShift(), duration: null }],
+    history: [{ stage: stages[0], time: now, by: data.by, byName: data.byName || 'المدير', note: '', shift: getCurrentShift(), duration: null, startTime: now, endTime: null }],
     assignedWorker: data.assignedWorker || null,
     rejectReason: null, deliveredTo: null, deliveredAt: null,
     createdAt: serverTimestamp(), createdBy: data.by
@@ -156,6 +173,14 @@ async function updateCyl(id, changes) {
   await updateDoc(doc(db, 'cylinders', id), changes);
 }
 
+async function deleteCylinderById(cylId) {
+  if (!confirm('⚠️ هل أنت متأكد من حذف هذا السلندر؟ لا يمكن التراجع.')) return { ok: false, msg: 'تم الإلغاء' };
+  const cyl = await getCylById(cylId);
+  await deleteDoc(doc(db, 'cylinders', cylId));
+  await addNotif('admin', `تم حذف السلندر ${cyl?.code || cylId}`, 'warning');
+  return { ok: true };
+}
+
 async function advanceStage(cylId, workerId, workerName, note) {
   const cyl = await getCylById(cylId);
   if (!cyl || cyl.status !== 'active') return { ok: false, msg: 'لا يمكن تقديم هذا السلندر' };
@@ -163,19 +188,20 @@ async function advanceStage(cylId, workerId, workerName, note) {
   const now = new Date().toISOString();
   const duration = cyl.stageStartTime ? new Date(now) - new Date(cyl.stageStartTime) : null;
   const nextIdx = cyl.currentStageIndex + 1;
-  // تسجيل انتهاء المرحلة الحالية
   const history = [...(cyl.history || [])];
-  // تحديث آخر سجل بوقت الانتهاء والمدة
   if (history.length > 0) {
     const last = { ...history[history.length - 1] };
     last.endTime = now;
     last.duration = duration;
     history[history.length - 1] = last;
   }
-  // إضافة المرحلة الجديدة
-  history.push({ stage: cyl.stages[nextIdx], time: now, by: workerId, byName: workerName, note: note || '', shift: getCurrentShift(), duration: null, endTime: null });
+  history.push({ stage: cyl.stages[nextIdx], time: now, by: workerId, byName: workerName, note: note || '', shift: getCurrentShift(), duration: null, startTime: now, endTime: null });
+  const isLastStage = (nextIdx >= cyl.stages.length - 1);
   await updateCyl(cylId, { currentStageIndex: nextIdx, history, stageStartTime: now });
   await addNotif('admin', `السلندر ${cyl.code} انتقل إلى: ${cyl.stages[nextIdx]} بواسطة ${workerName}`, 'info');
+  if (isLastStage) {
+    await addNotif('admin', `🎉 السلندر ${cyl.code} جاهز للتسليم`, 'info');
+  }
   return { ok: true };
 }
 
@@ -185,7 +211,7 @@ async function goBackStage(cylId, workerId, workerName, reason) {
   if (cyl.currentStageIndex === 0) return { ok: false, msg: 'أنت في أول مرحلة' };
   const now = new Date().toISOString();
   const prevIdx = cyl.currentStageIndex - 1;
-  const history = [...(cyl.history || []), { stage: '← رجوع: ' + cyl.stages[prevIdx], time: now, by: workerId, byName: workerName, note: reason || 'رجوع للمرحلة السابقة', shift: getCurrentShift(), duration: null }];
+  const history = [...(cyl.history || []), { stage: '← رجوع: ' + cyl.stages[prevIdx], time: now, by: workerId, byName: workerName, note: reason || 'رجوع للمرحلة السابقة', shift: getCurrentShift(), duration: null, startTime: now, endTime: null }];
   await updateCyl(cylId, { currentStageIndex: prevIdx, history, stageStartTime: now });
   await addNotif('admin', `السلندر ${cyl.code} رجع إلى: ${cyl.stages[prevIdx]} بواسطة ${workerName}`, 'warning');
   return { ok: true };
@@ -195,13 +221,11 @@ async function rejectCyl(cylId, reason, workerId, workerName, restageIndex) {
   const cyl = await getCylById(cylId);
   if (!cyl) return { ok: false };
   const now = new Date().toISOString();
-  const history = [...(cyl.history || [])];
-  // تسجيل العيب
-  history.push({ stage: '⚠ إبلاغ عيب', time: now, by: workerId, byName: workerName, note: reason, shift: getCurrentShift(), duration: null });
-  // إعادة تشغيل مباشرة
   const targetIdx = restageIndex !== undefined ? restageIndex : cyl.currentStageIndex;
-  history.push({ stage: '🔄 إعادة من: ' + cyl.stages[targetIdx], time: now, by: workerId, byName: workerName, note: `إعادة بعد عيب: ${reason}`, shift: getCurrentShift(), duration: null });
-  await updateCyl(cylId, { status: 'active', currentStageIndex: targetIdx, history, stageStartTime: now, lastReject: { reason, by: workerName, time: now } });
+  const history = [...(cyl.history || [])];
+  history.push({ stage: '⚠ إبلاغ عيب', time: now, by: workerId, byName: workerName, note: reason, shift: getCurrentShift(), duration: null, startTime: now, endTime: null });
+  history.push({ stage: '🔄 إعادة من: ' + cyl.stages[targetIdx], time: now, by: workerId, byName: workerName, note: `إعادة بعد عيب: ${reason}`, shift: getCurrentShift(), duration: null, startTime: now, endTime: null });
+  await updateCyl(cylId, { status: 'active', currentStageIndex: targetIdx, history, stageStartTime: now, lastReject: { reason, by: workerName, time: now, returnTo: cyl.stages[targetIdx] } });
   await addNotif('admin', `⚠ السلندر ${cyl.code} فيه عيب: ${reason} - أُعيد من مرحلة: ${cyl.stages[targetIdx]} بواسطة ${workerName}`, 'warning');
   return { ok: true };
 }
@@ -210,7 +234,7 @@ async function reinstateCyl(cylId, stageIndex) {
   const cyl = await getCylById(cylId);
   if (!cyl) return { ok: false };
   const now = new Date().toISOString();
-  const history = [...(cyl.history || []), { stage: '🔄 إعادة تشغيل من: ' + cyl.stages[stageIndex], time: now, by: 'admin', byName: 'المدير', note: '', shift: getCurrentShift(), duration: null }];
+  const history = [...(cyl.history || []), { stage: '🔄 إعادة تشغيل من: ' + cyl.stages[stageIndex], time: now, by: 'admin', byName: 'المدير', note: '', shift: getCurrentShift(), duration: null, startTime: now, endTime: null }];
   await updateCyl(cylId, { status: 'active', rejectReason: null, currentStageIndex: stageIndex, history, stageStartTime: now });
   return { ok: true };
 }
@@ -226,8 +250,8 @@ async function deliverCyl(cylId, deliveredTo) {
     last.endTime = now; last.duration = duration;
     history[history.length - 1] = last;
   }
-  history.push({ stage: '✅ تسليم للعميل', time: now, by: 'admin', byName: 'المدير', note: `تسلّم: ${deliveredTo}`, shift: getCurrentShift(), duration: null });
-  await updateCyl(cylId, { status: 'delivered', deliveredTo, deliveredAt: now, history });
+  history.push({ stage: '✅ تسليم للعميل', time: now, by: 'admin', byName: 'المدير', note: `تسلّم: ${deliveredTo}`, shift: getCurrentShift(), duration: null, startTime: now, endTime: null });
+  await updateCyl(cylId, { status: 'delivered', deliveredTo, deliveredAt: now, history, currentStageIndex: cyl.stages.length });
   return { ok: true };
 }
 
@@ -273,13 +297,11 @@ async function getStats() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const week = new Date(today); week.setDate(week.getDate() - 7);
 
-  // إحصائيات يومية
   const todayCyls = cyls.filter(c => {
     const d = c.createdAt?.toDate ? c.createdAt.toDate() : new Date(c.createdAt || 0);
     return d >= today;
   });
 
-  // أكثر المراحل التي فيها عيوب
   const defectStages = {};
   cyls.forEach(c => {
     (c.history || []).forEach(h => {
@@ -291,7 +313,6 @@ async function getStats() {
   });
   const topDefects = Object.entries(defectStages).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  // متوسط وقت كل مرحلة
   const stageTimes = {};
   cyls.forEach(c => {
     (c.history || []).forEach(h => {
@@ -305,8 +326,8 @@ async function getStats() {
     stage, avg: times.reduce((a, b) => a + b, 0) / times.length, count: times.length
   }));
 
-  // السلندرات المتأخرة
   const lateCyls = cyls.filter(c => c.status === 'active' && isLate(c.deliveryDate));
+  const stuckCyls = cyls.filter(c => isStuck(c));
 
   return {
     total: cyls.length,
@@ -314,8 +335,9 @@ async function getStats() {
     rejected: cyls.filter(c => c.status === 'rejected').length,
     delivered: cyls.filter(c => c.status === 'delivered').length,
     late: lateCyls.length,
+    stuck: stuckCyls.length,
     todayAdded: todayCyls.length,
-    cylinders: cyls, lateCyls, topDefects, avgStageTimes,
+    cylinders: cyls, lateCyls, stuckCyls, topDefects, avgStageTimes,
     workers: workers.map(w => ({
       ...w,
       done: cyls.filter(c => c.history?.some(h => h.by === w.id && !h.stage.includes('←') && !h.stage.includes('⚠'))).length,
@@ -353,9 +375,9 @@ function listenMsgs(userId, cb) {
 // ===== تصدير =====
 window.SCH = {
   IRON_STAGES, CHROME_STAGES, SHIFTS, db,
-  fmtTime, fmtDuration, calcDuration, getCurrentShift, isLate, statusLabel, statusClass,
-  initAdmin, loginUser, getWorkers, getUserById, addWorker, changePass, changeWorkerPass,
-  addCylinder, getCylinders, getCylById, updateCyl,
+  fmtTime, fmtDuration, calcDuration, getCurrentShift, isLate, isStuck, statusLabel, statusClass,
+  initAdmin, loginUser, getWorkers, getUserById, addWorker, deleteWorkerById, changePass, changeWorkerPass,
+  addCylinder, getCylinders, getCylById, updateCyl, deleteCylinderById,
   advanceStage, goBackStage, rejectCyl, reinstateCyl, deliverCyl,
   sendMessage, getMessages, getMyMessages, confirmRead,
   addNotif, getMyNotifs, markNotifsRead,
