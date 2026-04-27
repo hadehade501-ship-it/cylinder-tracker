@@ -312,7 +312,7 @@
 <script type="module" src="app.js"></script>
 <script type="module">
 // ============================================================
-// واجهة المستخدم الكاملة (معدّلة - زر الإشعارات مصلح)
+// واجهة المستخدم الكاملة (معدّلة)
 // ============================================================
 
 async function waitSCH(ms = 5000) {
@@ -401,9 +401,7 @@ const UI = (() => {
   async function toggleNotifs() {
     const panel = document.getElementById('notifPanel');
     if (!panel) return;
-    
     notifOpen = !notifOpen;
-    
     if (notifOpen) {
       try {
         const uid = currentUser.role === 'manager' ? 'admin' : currentUser.id;
@@ -415,24 +413,16 @@ const UI = (() => {
           : '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">لا توجد إشعارات</div></div>';
         await SCH.markNotifsRead(uid);
         panel.classList.add('open');
-      } catch(e) {
-        console.error('خطأ في الإشعارات:', e);
-        showToast('تعذر تحميل الإشعارات');
-      }
-    } else {
-      panel.classList.remove('open');
-    }
+      } catch(e) { console.error('خطأ في الإشعارات:', e); showToast('تعذر تحميل الإشعارات'); }
+    } else { panel.classList.remove('open'); }
   }
 
-  // ===== التنقل من التنبيهات =====
   function goToLateCyls() { showPage('cylinders'); setTimeout(() => { currentCylFilter = 'late'; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); const chip = document.querySelector('.filter-chip[onclick*="late"]'); if (chip) chip.classList.add('active'); renderCyls(); }, 200); }
 
-  // ===== لوحة التحكم =====
   async function renderDashboard() {
     const stats = await SCH.getStats();
     const lateEl = document.getElementById('lateAlert');
     lateEl.innerHTML = stats.lateCyls.length ? `<div class="alert alert-warn" style="margin-bottom:12px">⏰ تنبيه: ${stats.lateCyls.length} سلندر تجاوز موعد التسليم!<br><small>${stats.lateCyls.map(c => c.code).join(' · ')}</small></div>` : '';
-    
     document.getElementById('statsGrid').innerHTML = `
       <div class="stat-card" onclick="UI.goToFilter('all')"><div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي (${stats.total})</div></div>
       <div class="stat-card blue" onclick="UI.goToFilter('active')"><div class="stat-num">${stats.active}</div><div class="stat-label">نشط (${stats.active})</div></div>
@@ -441,25 +431,11 @@ const UI = (() => {
       <div class="stat-card warn" onclick="UI.goToFilter('stuck')"><div class="stat-num">${stats.stuck || 0}</div><div class="stat-label">متأخر (${stats.stuck || 0})</div></div>
       <div class="stat-card"><div class="stat-num">${stats.todayAdded}</div><div class="stat-label">أضيف اليوم</div></div>
     `;
-
     const stageEl = document.getElementById('stageStats');
-    if (stats.avgStageTimes.length) {
-      const max = Math.max(...stats.avgStageTimes.map(s => s.avg));
-      stageEl.innerHTML = stats.avgStageTimes.map(s => `<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${s.stage}</span><span>${SCH.fmtDuration(s.avg)}</span></div><div class="chart-bar"><div class="chart-bar-fill" style="width:${(s.avg/max*100).toFixed(0)}%"></div></div></div>`).join('');
-    } else stageEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">لا توجد بيانات كافية بعد</div></div>';
-
+    if (stats.avgStageTimes.length) { const max = Math.max(...stats.avgStageTimes.map(s => s.avg)); stageEl.innerHTML = stats.avgStageTimes.map(s => `<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${s.stage}</span><span>${SCH.fmtDuration(s.avg)}</span></div><div class="chart-bar"><div class="chart-bar-fill" style="width:${(s.avg/max*100).toFixed(0)}%"></div></div></div>`).join(''); } else stageEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">لا توجد بيانات كافية بعد</div></div>';
     const defEl = document.getElementById('defectStats');
-    if (stats.topDefects.length) {
-      const max = stats.topDefects[0][1];
-      defEl.innerHTML = stats.topDefects.map(([stage, count]) => `<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${stage}</span><span>${count} عيب</span></div><div class="chart-bar"><div class="chart-bar-fill danger" style="width:${(count/max*100).toFixed(0)}%"></div></div></div>`).join('');
-    } else defEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">لا توجد عيوب مسجلة</div></div>';
-
-    document.getElementById('workerPerf').innerHTML = stats.workers.length ? stats.workers.map(w => {
-      const shift = SCH.SHIFTS[w.shift || 'morning'];
-      return `<div class="worker-card" onclick="UI.goToWorkerCyls('${w.id}')" style="cursor:pointer">
-        <div class="worker-avatar">👷</div><div class="worker-info"><div class="worker-name">${w.name}</div><div class="worker-sub">${w.id} · ${w.machine || 'بدون ماكينة'}</div><div class="worker-stats">${shift.icon} ${shift.label} · ${w.done} سلندر · ${w.defects} عيب</div></div>
-        <span class="shift-badge shift-${w.shift || 'morning'}">${shift.icon}</span></div>`;
-    }).join('') : '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>';
+    if (stats.topDefects.length) { const max = stats.topDefects[0][1]; defEl.innerHTML = stats.topDefects.map(([stage, count]) => `<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${stage}</span><span>${count} عيب</span></div><div class="chart-bar"><div class="chart-bar-fill danger" style="width:${(count/max*100).toFixed(0)}%"></div></div></div>`).join(''); } else defEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">لا توجد عيوب مسجلة</div></div>';
+    document.getElementById('workerPerf').innerHTML = stats.workers.length ? stats.workers.map(w => { const shift = SCH.SHIFTS[w.shift || 'morning']; return `<div class="worker-card" onclick="UI.goToWorkerCyls('${w.id}')" style="cursor:pointer"><div class="worker-avatar">👷</div><div class="worker-info"><div class="worker-name">${w.name}</div><div class="worker-sub">${w.id} · ${w.machine || 'بدون ماكينة'}</div><div class="worker-stats">${shift.icon} ${shift.label} · ${w.done} سلندر · ${w.defects} عيب</div></div><span class="shift-badge shift-${w.shift || 'morning'}">${shift.icon}</span></div>`; }).join('') : '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>';
   }
 
   function goToFilter(filter) { showPage('cylinders'); setTimeout(() => { currentCylFilter = filter; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); const chip = document.querySelector(`.filter-chip[onclick*="'${filter}'"]`); if (chip) chip.classList.add('active'); renderCyls(); }, 200); }
@@ -475,9 +451,7 @@ const UI = (() => {
     else if (currentCylFilter === 'archive') list = list.filter(c => c.status === 'delivered');
     else if (currentCylFilter !== 'all') list = list.filter(c => c.status === currentCylFilter);
     if (q) list = list.filter(c => c.code.toLowerCase().includes(q) || c.press.toLowerCase().includes(q) || (c.edition || '').toLowerCase().includes(q));
-    
     updateFilterCounts();
-    
     const el = document.getElementById('cylList');
     if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔩</div><div class="empty-text">لا توجد سلندرات</div></div>'; return; }
     el.innerHTML = list.map(c => {
@@ -547,7 +521,6 @@ const UI = (() => {
     const isLast = c.currentStageIndex === c.stages.length - 1;
     const displayStatus = c.status === 'delivered' ? '✅ تم التسليم' : SCH.statusLabel(c.status, late, stuck);
     const sc = c.status === 'delivered' ? 'delivered' : SCH.statusClass(c.status, late, stuck);
-
     let html = `<div class="modal-title">${c.code}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span class="status-badge status-${sc}">${displayStatus}</span>
@@ -559,35 +532,10 @@ const UI = (() => {
       ${c.rejectReason && !c.lastReject ? `<div class="alert alert-danger" style="margin-bottom:10px">⚠ آخر عيب: ${c.rejectReason}</div>` : ''}
       <div class="progress-wrap"><div class="progress-label"><span>${c.status === 'delivered' ? '✅ تم التسليم' : c.stages[c.currentStageIndex]}</span><span>${prog}%</span></div>
       <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></div>
-      <div class="stages-list" style="margin:12px 0">${c.stages.map((s, i) => {
-        const done = c.status === 'delivered' ? true : i < c.currentStageIndex;
-        const cur = c.status === 'delivered' ? false : i === c.currentStageIndex;
-        const hist = c.history?.find(h => h.stage === s);
-        const dur = hist?.duration ? SCH.fmtDuration(hist.duration) : null;
-        return `<div class="stage-item ${done?'done':cur?'current':'pending'}"><div class="stage-num">${done ? '✓' : i+1}</div><div class="stage-info"><div class="stage-name">${s}</div>${hist ? `<div class="stage-time">${SCH.fmtTime(hist.time)} · ${hist.byName || hist.by}</div>` : ''}${dur ? `<div class="stage-duration">⏱ ${dur}</div>` : ''}${hist?.note ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 ${hist.note}</div>` : ''}</div></div>`;
-      }).join('')}</div>`;
-
-    if (!isManager && c.status === 'active') {
-      html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`;
-      if (!isLast) html += `<button class="btn btn-gold" style="flex:1" onclick="UI.showAdvance()">التالية ←</button>`;
-      if (c.currentStageIndex > 0) html += `<button class="btn btn-outline btn-sm" onclick="UI.showGoBack()">→ رجوع</button>`;
-      html += `<button class="btn btn-danger btn-sm" onclick="UI.showReject()">⚠ عيب</button></div>`;
-    }
-
-    if (isManager) {
-      html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`;
-      if (c.status === 'active' && isLast) html += `<button class="btn btn-success" style="flex:1" onclick="UI.showDeliver()">✅ تسليم</button>`;
-      if (c.status === 'rejected') html += `<button class="btn btn-gold" onclick="UI.showReinstate()">🔄 إعادة</button>`;
-      html += `<button class="btn btn-outline btn-sm" onclick="UI.showPrintCard()">🖨️ بطاقة</button>`;
-      html += `<button class="btn btn-danger btn-sm" onclick="UI.deleteCyl('${c.id}');UI.closeModal('cylDetail')">🗑️ حذف</button></div>`;
-    }
-
-    html += `<div class="divider"></div><div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px">📋 السجل الزمني</div><div class="timeline">${(c.history || []).map(h => {
-      const type = h.stage.includes('عيب')||h.stage.includes('مرفوض') ? 'warn' : h.stage.includes('رجوع')||h.stage.includes('←') ? 'back' : h.stage.includes('تسليم') ? 'deliver' : '';
-      const shift = h.shift ? SCH.SHIFTS[h.shift] : null;
-      return `<div class="tl-item ${type}"><div class="tl-dot"></div><div class="tl-stage">${h.stage}</div><div class="tl-meta">${SCH.fmtTime(h.time)} · ${h.byName || h.by}${shift ? ' · ' + shift.icon + ' ' + shift.label : ''}${h.note ? ' · ' + h.note : ''}</div>${h.duration ? `<div class="tl-duration">⏱ ${SCH.fmtDuration(h.duration)}</div>` : ''}</div>`;
-    }).join('')}</div>`;
-
+      <div class="stages-list" style="margin:12px 0">${c.stages.map((s, i) => { const done = c.status === 'delivered' ? true : i < c.currentStageIndex; const cur = c.status === 'delivered' ? false : i === c.currentStageIndex; const hist = c.history?.find(h => h.stage === s); const dur = hist?.duration ? SCH.fmtDuration(hist.duration) : null; return `<div class="stage-item ${done?'done':cur?'current':'pending'}"><div class="stage-num">${done ? '✓' : i+1}</div><div class="stage-info"><div class="stage-name">${s}</div>${hist ? `<div class="stage-time">${SCH.fmtTime(hist.time)} · ${hist.byName || hist.by}</div>` : ''}${dur ? `<div class="stage-duration">⏱ ${dur}</div>` : ''}${hist?.note ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 ${hist.note}</div>` : ''}</div></div>`; }).join('')}</div>`;
+    if (!isManager && c.status === 'active') { html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`; if (!isLast) html += `<button class="btn btn-gold" style="flex:1" onclick="UI.showAdvance()">التالية ←</button>`; if (c.currentStageIndex > 0) html += `<button class="btn btn-outline btn-sm" onclick="UI.showGoBack()">→ رجوع</button>`; html += `<button class="btn btn-danger btn-sm" onclick="UI.showReject()">⚠ عيب</button></div>`; }
+    if (isManager) { html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`; if (c.status === 'active' && isLast) html += `<button class="btn btn-success" style="flex:1" onclick="UI.showDeliver()">✅ تسليم</button>`; if (c.status === 'rejected') html += `<button class="btn btn-gold" onclick="UI.showReinstate()">🔄 إعادة</button>`; html += `<button class="btn btn-outline btn-sm" onclick="UI.showPrintCard()">🖨️ بطاقة</button>`; html += `<button class="btn btn-danger btn-sm" onclick="UI.deleteCyl('${c.id}');UI.closeModal('cylDetail')">🗑️ حذف</button></div>`; }
+    html += `<div class="divider"></div><div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px">📋 السجل الزمني</div><div class="timeline">${(c.history || []).map(h => { const type = h.stage.includes('عيب')||h.stage.includes('مرفوض') ? 'warn' : h.stage.includes('رجوع')||h.stage.includes('←') ? 'back' : h.stage.includes('تسليم') ? 'deliver' : ''; const shift = h.shift ? SCH.SHIFTS[h.shift] : null; return `<div class="tl-item ${type}"><div class="tl-dot"></div><div class="tl-stage">${h.stage}</div><div class="tl-meta">${SCH.fmtTime(h.time)} · ${h.byName || h.by}${shift ? ' · ' + shift.icon + ' ' + shift.label : ''}${h.note ? ' · ' + h.note : ''}</div>${h.duration ? `<div class="tl-duration">⏱ ${SCH.fmtDuration(h.duration)}</div>` : ''}</div>`; }).join('')}</div>`;
     document.getElementById('cylDetailContent').innerHTML = html;
     openModal('cylDetail');
   }
@@ -607,24 +555,7 @@ const UI = (() => {
     const c = await SCH.getCylById(activeCylId);
     const totalTime = c.history?.length > 1 ? new Date(c.history[c.history.length-1].time) - new Date(c.history[0].time) : null;
     const rejectHistory = c.history?.filter(h => h.stage.includes('عيب') || h.stage.includes('مرفوض') || h.stage.includes('🔄 إعادة من')) || [];
-    document.getElementById('printCard').innerHTML = `
-      <div class="print-card">
-        <div class="print-header"><div><div class="print-company">بيت السلندر السوري · Syrian Cylinder House</div><div style="font-size:12px;color:#666;margin-top:2px">${c.press} · ${c.type === 'iron' ? 'حديد' : 'كروم'}</div></div><div class="print-code">${c.code}</div></div>
-        <div class="print-grid">
-          <div class="print-field"><label>الطبعة</label><span>${c.edition || '-'}</span></div>
-          <div class="print-field"><label>تاريخ الدخول</label><span>${c.entryDate || '-'}</span></div>
-          <div class="print-field"><label>تاريخ التسليم</label><span>${c.deliveryDate || '-'}</span></div>
-          <div class="print-field"><label>الحالة</label><span>${c.status === 'delivered' ? '✅ تم التسليم' : SCH.statusLabel(c.status)}</span></div>
-          <div class="print-field"><label>المسلّم إليه</label><span>${c.deliveredTo || '-'}</span></div>
-          <div class="print-field"><label>الوقت الكلي</label><span>${totalTime ? SCH.fmtDuration(totalTime) : '-'}</span></div>
-        </div>
-        ${c.lastReject ? `<div style="background:#fff3f3;border:1px solid #ffcccc;border-radius:6px;padding:8px;font-size:12px;margin-bottom:12px"><strong>⚠ عيب مسجل:</strong> ${c.lastReject.reason}<br><small>بواسطة: ${c.lastReject.by} | العودة إلى: ${c.lastReject.returnTo} | ${SCH.fmtTime(c.lastReject.time)}</small></div>` : ''}
-        ${rejectHistory.length > 0 ? `<div style="margin-bottom:12px"><strong style="color:var(--danger);">⚠ سجل العيوب والإعادة:</strong>${rejectHistory.map(h => `<div style="font-size:11px;margin-top:4px;padding:4px 8px;background:#fff3f3;border-radius:4px;">${h.stage} - ${h.note || ''} (${h.byName || h.by} · ${SCH.fmtTime(h.time)})</div>`).join('')}</div>` : ''}
-        <div class="print-stages"><div style="font-weight:700;margin-bottom:8px;font-size:13px">المراحل التفصيلية:</div>
-        ${c.stages.map((s, i) => { const h = c.history?.find(x => x.stage === s); const done = c.status === 'delivered' ? true : i <= c.currentStageIndex; return `<div class="print-stage-row ${done?'done-row':''}"><span>${i+1}. ${s}</span><span>${h ? SCH.fmtTime(h.time) : '-'}</span><span>${h?.byName || '-'}</span><span>${h?.duration ? SCH.fmtDuration(h.duration) : '-'}</span></div>`; }).join('')}</div>
-        ${c.notes ? `<div style="margin-top:10px;font-size:12px;background:#f9f9f9;padding:8px;border-radius:4px"><strong>ملاحظات:</strong> ${c.notes}</div>` : ''}
-        <div class="print-sig"><div class="print-sig-box"><div class="print-sig-line">مدير الإنتاج</div></div><div class="print-sig-box"><div class="print-sig-line">مراقب الجودة</div></div><div class="print-sig-box"><div class="print-sig-line">المستلم</div></div></div>
-      </div>`;
+    document.getElementById('printCard').innerHTML = `<div class="print-card"><div class="print-header"><div><div class="print-company">بيت السلندر السوري · Syrian Cylinder House</div><div style="font-size:12px;color:#666;margin-top:2px">${c.press} · ${c.type === 'iron' ? 'حديد' : 'كروم'}</div></div><div class="print-code">${c.code}</div></div><div class="print-grid"><div class="print-field"><label>الطبعة</label><span>${c.edition || '-'}</span></div><div class="print-field"><label>تاريخ الدخول</label><span>${c.entryDate || '-'}</span></div><div class="print-field"><label>تاريخ التسليم</label><span>${c.deliveryDate || '-'}</span></div><div class="print-field"><label>الحالة</label><span>${c.status === 'delivered' ? '✅ تم التسليم' : SCH.statusLabel(c.status)}</span></div><div class="print-field"><label>المسلّم إليه</label><span>${c.deliveredTo || '-'}</span></div><div class="print-field"><label>الوقت الكلي</label><span>${totalTime ? SCH.fmtDuration(totalTime) : '-'}</span></div></div>${c.lastReject ? `<div style="background:#fff3f3;border:1px solid #ffcccc;border-radius:6px;padding:8px;font-size:12px;margin-bottom:12px"><strong>⚠ عيب مسجل:</strong> ${c.lastReject.reason}<br><small>بواسطة: ${c.lastReject.by} | العودة إلى: ${c.lastReject.returnTo} | ${SCH.fmtTime(c.lastReject.time)}</small></div>` : ''}${rejectHistory.length > 0 ? `<div style="margin-bottom:12px"><strong style="color:var(--danger);">⚠ سجل العيوب والإعادة:</strong>${rejectHistory.map(h => `<div style="font-size:11px;margin-top:4px;padding:4px 8px;background:#fff3f3;border-radius:4px;">${h.stage} - ${h.note || ''} (${h.byName || h.by} · ${SCH.fmtTime(h.time)})</div>`).join('')}</div>` : ''}<div class="print-stages"><div style="font-weight:700;margin-bottom:8px;font-size:13px">المراحل التفصيلية:</div>${c.stages.map((s, i) => { const h = c.history?.find(x => x.stage === s); const done = c.status === 'delivered' ? true : i <= c.currentStageIndex; return `<div class="print-stage-row ${done?'done-row':''}"><span>${i+1}. ${s}</span><span>${h ? SCH.fmtTime(h.time) : '-'}</span><span>${h?.byName || '-'}</span><span>${h?.duration ? SCH.fmtDuration(h.duration) : '-'}</span></div>`; }).join('')}</div>${c.notes ? `<div style="margin-top:10px;font-size:12px;background:#f9f9f9;padding:8px;border-radius:4px"><strong>ملاحظات:</strong> ${c.notes}</div>` : ''}<div class="print-sig"><div class="print-sig-box"><div class="print-sig-line">مدير الإنتاج</div></div><div class="print-sig-box"><div class="print-sig-line">مراقب الجودة</div></div><div class="print-sig-box"><div class="print-sig-line">المستلم</div></div></div></div>`;
     openModal('printCard');
   }
 
@@ -632,15 +563,7 @@ const UI = (() => {
     const workers = await SCH.getWorkers();
     const el = document.getElementById('workerList');
     if (!workers.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>'; return; }
-    el.innerHTML = workers.map(w => {
-      const shift = SCH.SHIFTS[w.shift || 'morning'];
-      return `<div class="worker-card"><div class="worker-avatar">👷</div><div class="worker-info"><div class="worker-name">${w.name}</div><div class="worker-sub">${w.id} · ${w.machine || 'بدون ماكينة'}</div><div class="worker-stats">${shift.icon} ${shift.label} · ${shift.time}</div></div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="UI.showChangeWPass('${w.id}')">🔑</button>
-          <button class="btn btn-sm btn-info" onclick="UI.showSendMsgTo('${w.id}')">✉️</button>
-          <button class="btn btn-sm btn-danger" onclick="UI.deleteWorker('${w.id}')">🗑️</button>
-        </div></div>`;
-    }).join('');
+    el.innerHTML = workers.map(w => { const shift = SCH.SHIFTS[w.shift || 'morning']; return `<div class="worker-card"><div class="worker-avatar">👷</div><div class="worker-info"><div class="worker-name">${w.name}</div><div class="worker-sub">${w.id} · ${w.machine || 'بدون ماكينة'}</div><div class="worker-stats">${shift.icon} ${shift.label} · ${shift.time}</div></div><div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm" onclick="UI.showChangeWPass('${w.id}')">🔑</button><button class="btn btn-sm btn-info" onclick="UI.showSendMsgTo('${w.id}')">✉️</button><button class="btn btn-sm btn-danger" onclick="UI.deleteWorker('${w.id}')">🗑️</button></div></div>`; }).join('');
   }
   async function showAddWorker() { ['aw_name','aw_user','aw_pass','aw_machine'].forEach(id => document.getElementById(id).value = ''); document.getElementById('aw_shift').value = 'morning'; openModal('addWorker'); }
   async function addWorker() { const name = document.getElementById('aw_name').value.trim(), user = document.getElementById('aw_user').value.trim(), pass = document.getElementById('aw_pass').value.trim(), shift = document.getElementById('aw_shift').value, machine = document.getElementById('aw_machine').value.trim(); if (!name || !user || !pass) { showToast('أدخل جميع البيانات المطلوبة'); return; } if (/\s/.test(user)) { showToast('اسم المستخدم بدون مسافات'); return; } const r = await SCH.addWorker(name, user, pass, shift, machine); if (!r.ok) { showToast(r.msg); return; } closeModal('addWorker'); renderWorkers(); showToast('✅ تم إضافة العامل'); }
@@ -657,9 +580,21 @@ const UI = (() => {
   async function saveWorkerPass() { const wid = document.getElementById('s_worker').value, pass = document.getElementById('s_wpass').value.trim(); if (!wid || !pass) { showToast('اختر عامل وأدخل كلمة المرور'); return; } await SCH.changeWorkerPass(wid, pass); document.getElementById('s_wpass').value = ''; showToast('✅ تم تغيير كلمة مرور العامل'); }
 
   function renderWorkerShift() { const shift = SCH.SHIFTS[currentUser.shift || SCH.getCurrentShift()]; const el = document.getElementById('workerShiftBadge'); if (el) el.innerHTML = `<div class="alert alert-info">وردية: ${shift.icon} ${shift.label} · ${shift.time}</div>`; }
+
+  // ===== دالة سلندرات العامل (مُصلحة - تظهر المفتوح للجميع) =====
   function renderWorkerCyls() {
     const myId = currentUser.id;
-    const list = cylinders.filter(c => c.status !== 'rejected' && c.status !== 'delivered' && (c.assignedWorker === myId || !c.assignedWorker || c.history?.some(h => h.by === myId)));
+    const list = cylinders.filter(c => 
+      c.status !== 'rejected' && 
+      c.status !== 'delivered' && 
+      (
+        c.assignedWorker === myId || 
+        !c.assignedWorker || 
+        c.assignedWorker === '' || 
+        c.assignedWorker === '-- بدون تعيين --' ||
+        c.history?.some(h => h.by === myId)
+      )
+    );
     const el = document.getElementById('workerCylList');
     if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔩</div><div class="empty-text">لا توجد سلندرات مُسندة إليك</div></div>'; return; }
     el.innerHTML = list.map(c => {
@@ -669,6 +604,7 @@ const UI = (() => {
       return `<div class="cyl-card ${sc}" onclick="UI.openCylDetail('${c.id}')"><div class="cyl-header"><div><div class="cyl-code">${c.code}</div><div class="cyl-meta">${c.press}${stuck ? ' · ⏰ متأخر' : ''}</div></div><span class="status-badge status-${sc}">${stuck ? '⏰ متأخر بالمرحلة' : '🔵 نشط'}</span></div><div class="progress-wrap"><div class="progress-label"><span style="color:var(--gold);font-weight:700">${c.stages[c.currentStageIndex]}</span><span>${prog}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></div></div>`;
     }).join('');
   }
+
   async function renderWorkerMsgs() { const msgs = await SCH.getMyMessages(currentUser.id); const el = document.getElementById('workerMsgList'); if (!msgs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">✉️</div><div class="empty-text">لا توجد رسائل</div></div>'; return; } el.innerHTML = msgs.map(m => `<div class="msg-card ${!m.read?'unread':''}"><div class="msg-header"><span class="msg-from">من: ${m.fromName || 'المدير'}</span><span class="msg-time">${SCH.fmtTime(m.time)}</span></div><div class="msg-text">${m.text}</div>${!m.confirmed ? `<button class="btn btn-success btn-sm" style="margin-top:10px" onclick="UI.confirmMsg('${m.id}')">✅ تم الاستلام</button>` : '<div class="msg-status">✅ تم التأكيد</div>'}</div>`).join(''); }
   async function confirmMsg(msgId) { await SCH.confirmRead(msgId, currentUser.id, currentUser.name); renderWorkerMsgs(); showToast('✅ تم تأكيد الاستلام'); }
 
