@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SCH">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+<title>بيت السلندر السوري</title>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">⚙️</div>
+  <div class="splash-title">بيت السلندر السوري</div>
+  <div class="splash-sub">SYRIAN CYLINDER HOUSE</div>
+  <div class="splash-bar"><div class="splash-fill"></div></div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="display:none">
+  <div class="login-box">
+    <div class="login-icon">⚙️</div>
+    <div class="login-brand"><h1>بيت السلندر السوري</h1><p>SYRIAN CYLINDER HOUSE</p></div>
+    <div class="err-box" id="loginErr"></div>
+    <div class="form-group"><label>اسم المستخدم</label><input class="inp" type="text" id="loginUser" autocomplete="username" placeholder="اسم المستخدم"></div>
+    <div class="form-group"><label>كلمة المرور</label><input class="inp" type="password" id="loginPass" autocomplete="current-password" placeholder="كلمة المرور"></div>
+    <button class="btn btn-gold btn-block" id="loginBtn" onclick="UI.doLogin()" style="margin-top:10px">دخول</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-icon">⚙️</span>
+      <div><div class="topbar-name" id="topName">SCH</div><div class="topbar-role" id="topRole"></div></div>
+    </div>
+    <div class="topbar-actions">
+      <!-- إصلاح #6: زر الإشعارات يعمل -->
+      <div class="notif-btn" id="notifBtn" onclick="UI.toggleNotifs()">🔔<span class="badge" id="notifBadge" style="display:none">0</span></div>
+      <button class="btn btn-outline btn-sm" onclick="UI.logout()">خروج</button>
+    </div>
+  </div>
+
+  <!-- إصلاح #6: لوحة الإشعارات -->
+  <div class="notif-panel" id="notifPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:var(--gold)">الإشعارات</span>
+      <button onclick="UI.clearNotifs()" style="font-size:11px;color:var(--text2);background:none;border:none;cursor:pointer">مسح الكل</button>
+    </div>
+    <div id="notifList"></div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- لوحة التحكم -->
+    <div class="page" id="page-dashboard">
+      <div id="lateAlert"></div>
+      <!-- إصلاح #5: بطاقات الإحصائيات قابلة للضغط -->
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-title">📈 متوسط وقت المراحل</div>
+        <div id="stageStats"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚠️ أكثر المراحل عيوباً</div>
+        <div id="defectStats"></div>
+      </div>
+      <div class="card">
+        <!-- إصلاح #15: الضغط على العامل يعمل -->
+        <div class="card-title">👷 أداء العمال</div>
+        <div id="workerPerf"></div>
+      </div>
+    </div>
+
+    <!-- السلندرات -->
+    <div class="page" id="page-cylinders">
+      <div class="section-header">
+        <div class="section-title">السلندرات</div>
+        <button class="btn btn-gold btn-sm" onclick="UI.showAddCyl()">+ إضافة</button>
+      </div>
+      <!-- إصلاح #11: فلاتر مع عداد -->
+      <div class="filter-row" id="filterRow">
+        <div class="filter-chip active" onclick="UI.filterCyls('all',this)" data-filter="all">الكل</div>
+        <div class="filter-chip" onclick="UI.filterCyls('active',this)" data-filter="active">نشط</div>
+        <div class="filter-chip" onclick="UI.filterCyls('rejected',this)" data-filter="rejected">مرفوض</div>
+        <div class="filter-chip" onclick="UI.filterCyls('delivered',this)" data-filter="delivered">مُسلَّم</div>
+        <div class="filter-chip" onclick="UI.filterCyls('late',this)" data-filter="late">⏰ متأخر</div>
+        <div class="filter-chip" onclick="UI.filterCyls('stageDelayed',this)" data-filter="stageDelayed">🕐 متأخر بمرحلة</div>
+      </div>
+      <div class="search-bar"><input class="inp" type="text" id="cylSearch" placeholder="🔍 بحث بالكود أو المطبعة..." oninput="UI.renderCyls()"></div>
+      <div id="cylList"></div>
+    </div>
+
+    <!-- العمال -->
+    <div class="page" id="page-workers">
+      <div class="section-header">
+        <div class="section-title">العمال</div>
+        <button class="btn btn-gold btn-sm" onclick="UI.showAddWorker()">+ إضافة</button>
+      </div>
+      <div id="workerList"></div>
+    </div>
+
+    <!-- الرسائل -->
+    <div class="page" id="page-messages-mgr">
+      <div class="section-header">
+        <div class="section-title">الرسائل</div>
+        <button class="btn btn-gold btn-sm" onclick="UI.showSendMsg()">+ رسالة</button>
+      </div>
+      <div id="msgListMgr"></div>
+    </div>
+
+    <!-- الإعدادات -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-title">🔑 تغيير كلمة مرور المدير</div>
+        <div class="form-group"><label>الحالية</label><input class="inp" type="password" id="s_old"></div>
+        <div class="form-group"><label>الجديدة</label><input class="inp" type="password" id="s_new"></div>
+        <div class="form-group"><label>تأكيد</label><input class="inp" type="password" id="s_conf"></div>
+        <button class="btn btn-gold" onclick="UI.saveMgrPass()">حفظ</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🔧 تغيير كلمة مرور عامل</div>
+        <div class="form-group"><label>العامل</label><select class="inp" id="s_worker"></select></div>
+        <div class="form-group"><label>كلمة المرور الجديدة</label><input class="inp" type="password" id="s_wpass"></div>
+        <button class="btn btn-gold" onclick="UI.saveWorkerPass()">حفظ</button>
+      </div>
+      <div class="card">
+        <div class="card-title">💾 النسخ الاحتياطي والتقارير</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">تصدير البيانات والتقارير</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="SCH.exportBackup()">📥 نسخة احتياطية</button>
+          <!-- إصلاح #23: تقرير يومي -->
+          <button class="btn btn-info" onclick="SCH.exportDailyReport()">📊 تقرير يومي</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- سلندرات العامل -->
+    <div class="page" id="page-worker-cyls">
+      <div id="workerShiftInfo" style="margin-bottom:14px"></div>
+      <div class="section-title" style="margin-bottom:14px">سلندراتي</div>
+      <div id="workerCylList"></div>
+    </div>
+
+    <!-- رسائل العامل -->
+    <div class="page" id="page-worker-msgs">
+      <div class="section-title" style="margin-bottom:14px">رسائلي</div>
+      <div id="workerMsgList"></div>
+    </div>
+
+  </div>
+  <nav class="bottom-nav" id="bottomNav"></nav>
+</div>
+
+<!-- ===== المودالات ===== -->
+
+<!-- إضافة سلندر -->
+<div class="modal-overlay" id="modal-addCyl">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ إضافة سلندر جديد</div>
+    <div class="type-selector">
+      <div class="type-btn active" id="typeIron" onclick="UI.selectType('iron')"><span class="type-icon">🔩</span>حديد (10 مراحل)</div>
+      <div class="type-btn" id="typeChrome" onclick="UI.selectType('chrome')"><span class="type-icon">✨</span>كروم (9 مراحل)</div>
+    </div>
+    <div class="form-group"><label>الكود المنقوش *</label><input class="inp" id="ac_code" placeholder="مثال: CYL-001"></div>
+    <div class="form-row">
+      <div class="form-group"><label>اسم المطبعة *</label><input class="inp" id="ac_press"></div>
+      <div class="form-group"><label>نوع الطبعة</label><input class="inp" id="ac_edition"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>تاريخ الدخول</label><input class="inp" type="date" id="ac_entry"></div>
+      <div class="form-group"><label>تاريخ التسليم المتوقع</label><input class="inp" type="date" id="ac_delivery"></div>
+    </div>
+    <div class="form-group"><label>تعيين عامل</label><select class="inp" id="ac_worker"><option value="">-- بدون تعيين --</option></select></div>
+    <div class="form-group"><label>ملاحظات</label><textarea class="inp" id="ac_notes" rows="2"></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" id="addCylBtn" onclick="UI.addCyl()">إضافة</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('addCyl')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- إضافة عامل -->
+<div class="modal-overlay" id="modal-addWorker">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👷 إضافة عامل جديد</div>
+    <div class="form-group"><label>الاسم الكامل *</label><input class="inp" id="aw_name"></div>
+    <div class="form-group"><label>اسم المستخدم *</label><input class="inp" id="aw_user" dir="ltr" placeholder="بالإنجليزية بدون مسافات"></div>
+    <div class="form-group"><label>كلمة المرور *</label><input class="inp" type="password" id="aw_pass"></div>
+    <div class="form-group"><label>الوردية</label>
+      <select class="inp" id="aw_shift">
+        <option value="morning">🌅 صباحية (8ص - 4م)</option>
+        <option value="evening">🌆 مسائية (4م - 12م)</option>
+        <option value="night">🌙 ليلية (12م - 8ص)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>الماكينة</label><input class="inp" id="aw_machine" placeholder="مثال: مخارط 1"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="UI.addWorker()">إضافة</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('addWorker')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- إرسال رسالة -->
+<div class="modal-overlay" id="modal-sendMsg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✉️ إرسال رسالة</div>
+    <div class="form-group"><label>إلى</label><select class="inp" id="sm_to"></select></div>
+    <div class="form-group"><label>الرسالة</label><textarea class="inp" id="sm_text" rows="4" placeholder="اكتب رسالتك..."></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="UI.sendMsg()">إرسال</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('sendMsg')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- تفاصيل السلندر -->
+<div class="modal-overlay" id="modal-cylDetail">
+  <div class="modal"><div class="modal-handle"></div><div id="cylDetailContent"></div></div>
+</div>
+
+<!-- إصلاح #7: مودال إبلاغ عيب للعامل -->
+<div class="modal-overlay" id="modal-reject">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚠️ إبلاغ عن عيب</div>
+    <div class="form-group"><label>سبب العيب *</label><textarea class="inp" id="rej_reason" rows="3" placeholder="اشرح العيب بالتفصيل..."></textarea></div>
+    <div class="form-group"><label>أعد التشغيل من مرحلة</label><select class="inp" id="rej_stage"></select></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-danger" style="flex:1" onclick="UI.confirmReject()">تأكيد الإبلاغ</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('reject')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- الانتقال للمرحلة التالية -->
+<div class="modal-overlay" id="modal-advance">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="advanceTitle">الانتقال للمرحلة التالية</div>
+    <div class="form-group"><label>ملاحظة (اختياري)</label><textarea class="inp" id="adv_note" rows="2" placeholder="أي ملاحظة على هذه المرحلة..."></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="UI.confirmAdvance()">تأكيد الانتقال ←</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('advance')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- الرجوع للمرحلة السابقة -->
+<div class="modal-overlay" id="modal-goback">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">→ رجوع للمرحلة السابقة</div>
+    <div class="form-group"><label>سبب الرجوع</label><textarea class="inp" id="back_reason" rows="2" placeholder="لماذا ترجع؟"></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-outline" style="flex:1" onclick="UI.confirmGoBack()">تأكيد الرجوع</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('goback')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- تسليم للعميل -->
+<div class="modal-overlay" id="modal-deliver">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✅ تسليم للعميل</div>
+    <div class="form-group"><label>اسم المستلم *</label><input class="inp" id="del_to" placeholder="اسم العميل أو المستلم"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-success" style="flex:1" onclick="UI.confirmDeliver()">تسليم نهائي ✅</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('deliver')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- إعادة تشغيل (مدير) -->
+<div class="modal-overlay" id="modal-reinstate">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔄 إعادة تشغيل السلندر</div>
+    <div class="form-group"><label>ابدأ من المرحلة</label><select class="inp" id="ri_stage"></select></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="UI.confirmReinstate()">إعادة تشغيل</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('reinstate')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- بطاقة الطباعة -->
+<div class="modal-overlay" id="modal-printCard">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="printCard"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="window.print()">🖨️ طباعة</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('printCard')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- تغيير كلمة مرور عامل -->
+<div class="modal-overlay" id="modal-changeWPass">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 تغيير كلمة المرور</div>
+    <input type="hidden" id="cwp_id">
+    <div class="form-group"><label>كلمة المرور الجديدة</label><input class="inp" type="password" id="cwp_pass"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gold" style="flex:1" onclick="UI.confirmChangeWPass()">حفظ</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('changeWPass')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- إصلاح #3: مودال تأكيد الحذف -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="confirmTitle">تأكيد</div>
+    <p id="confirmMsg" style="font-size:14px;color:var(--text2);margin-bottom:20px"></p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-danger" style="flex:1" id="confirmOkBtn">تأكيد</button>
+      <button class="btn btn-outline" onclick="UI.closeModal('confirm')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- تفاصيل العامل -->
+<div class="modal-overlay" id="modal-workerDetail">
+  <div class="modal"><div class="modal-handle"></div><div id="workerDetailContent"></div></div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="app.js"></script>
+<script type="module">
+
+async function waitSCH(ms=6000) {
+  return new Promise((resolve,reject) => {
+    if (window.SCH) return resolve();
+    const t = setInterval(() => { if (window.SCH) { clearInterval(t); resolve(); } }, 50);
+    setTimeout(() => { clearInterval(t); reject(new Error('Firebase timeout')); }, ms);
+  });
+}
+
+const UI = (() => {
+  let currentUser = null;
+  let cylinders = [];
+  let currentCylFilter = 'all';
+  let activeCylId = null;
+  let selectedType = 'iron';
+  let unsubCyls = null;
+  let notifOpen = false;
+
+  // ===== تهيئة =====
+  async function init() {
+    try {
+      await waitSCH();
+      await SCH.initAdmin();
+    } catch(e) { showToast('تعذر الاتصال — تحقق من الإنترنت'); }
+    setTimeout(() => {
+      document.getElementById('splash').style.opacity='0';
+      setTimeout(() => {
+        document.getElementById('splash').style.display='none';
+        document.getElementById('loginScreen').style.display='flex';
+      }, 500);
+    }, 2000);
+    document.getElementById('loginUser').addEventListener('keydown', e => e.key==='Enter' && doLogin());
+    document.getElementById('loginPass').addEventListener('keydown', e => e.key==='Enter' && doLogin());
+    document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+  }
+
+  // ===== دخول =====
+  async function doLogin() {
+    const uid = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('loginErr');
+    if (!uid||!pass) { showLoginErr('أدخل اسم المستخدم وكلمة المرور'); return; }
+    btn.textContent='...'; btn.disabled=true;
+    try {
+      const u = await SCH.loginUser(uid, pass);
+      if (!u) { showLoginErr('بيانات الدخول غير صحيحة'); btn.textContent='دخول'; btn.disabled=false; return; }
+      currentUser=u; err.style.display='none';
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('app').style.display='block';
+      document.getElementById('topName').textContent=u.name;
+      const shift = SCH.SHIFTS[u.shift||SCH.getCurrentShift()];
+      document.getElementById('topRole').textContent = u.role==='manager' ? '👔 مدير' : `🔧 عامل · ${shift.icon} ${shift.label}`;
+      buildNav(); setupListeners();
+      if (u.role==='manager') showPage('dashboard');
+      else { showPage('worker-cyls'); renderWorkerShiftInfo(); }
+    } catch(e) { showLoginErr('حدث خطأ — تحقق من الاتصال'); }
+    btn.textContent='دخول'; btn.disabled=false;
+  }
+
+  function showLoginErr(msg) { const e=document.getElementById('loginErr'); e.textContent=msg; e.style.display='block'; }
+
+  function logout() {
+    if (unsubCyls) unsubCyls();
+    currentUser=null; cylinders=[];
+    document.getElementById('app').style.display='none';
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('loginUser').value='';
+    document.getElementById('loginPass').value='';
+  }
+
+  // ===== الاستماع الفوري =====
+  function setupListeners() {
+    unsubCyls = SCH.listenCylinders(cyls => {
+      cylinders=cyls;
+      const activePage = document.querySelector('.page.active');
+      if (!activePage) return;
+      const id = activePage.id.replace('page-','');
+      if (id==='cylinders') { renderCyls(); updateFilterCounts(); }
+      else if (id==='dashboard') renderDashboard();
+      else if (id==='worker-cyls') renderWorkerCyls();
+    });
+    const uid = currentUser.role==='manager'?'admin':currentUser.id;
+    const listenFn = currentUser.role==='manager'?SCH.listenUnread:SCH.listenMsgs;
+    listenFn(uid, count => {
+      const b=document.getElementById('notifBadge');
+      b.style.display=count>0?'flex':'none';
+      b.textContent=count>9?'9+':count;
+    });
+  }
+
+  // ===== التنقل =====
+  function buildNav() {
+    const mgr=currentUser.role==='manager';
+    const items = mgr
+      ? [{id:'dashboard',icon:'📊',label:'لوحة التحكم'},{id:'cylinders',icon:'🔩',label:'السلندرات'},{id:'workers',icon:'👷',label:'العمال'},{id:'messages-mgr',icon:'✉️',label:'الرسائل'},{id:'settings',icon:'⚙️',label:'الإعدادات'}]
+      : [{id:'worker-cyls',icon:'🔩',label:'سلندراتي'},{id:'worker-msgs',icon:'✉️',label:'رسائلي'}];
+    document.getElementById('bottomNav').innerHTML=items.map(i=>
+      `<button class="nav-item" id="nav-${i.id}" onclick="UI.showPage('${i.id}')"><span class="nav-icon">${i.icon}</span>${i.label}</button>`
+    ).join('');
+  }
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.getElementById('page-'+id)?.classList.add('active');
+    document.getElementById('nav-'+id)?.classList.add('active');
+    const map={dashboard:renderDashboard,cylinders:()=>{renderCyls();updateFilterCounts();},workers:renderWorkers,'messages-mgr':renderMgrMsgs,settings:renderSettings,'worker-cyls':renderWorkerCyls,'worker-msgs':renderWorkerMsgs};
+    if (map[id]) map[id]();
+    if (notifOpen) toggleNotifs();
+  }
+
+  // ===== إصلاح #6: الإشعارات تعمل =====
+  async function toggleNotifs() {
+    notifOpen=!notifOpen;
+    const panel=document.getElementById('notifPanel');
+    panel.classList.toggle('open',notifOpen);
+    if (notifOpen) {
+      const uid=currentUser.role==='manager'?'admin':currentUser.id;
+      const notifs=await SCH.getMyNotifs(uid);
+      const el=document.getElementById('notifList');
+      el.innerHTML=notifs.length
+        ? notifs.map(n=>`<div class="notif-item ${n.type}" onclick="UI.handleNotifClick('${n.type}')">
+            ${n.text}
+            <div class="notif-time">${SCH.fmtTime(n.time)}</div>
+          </div>`).join('')
+        : '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">لا توجد إشعارات</div></div>';
+      await SCH.markNotifsRead(uid);
+      document.getElementById('notifBadge').style.display='none';
+    }
+  }
+
+  async function clearNotifs() {
+    const uid=currentUser.role==='manager'?'admin':currentUser.id;
+    await SCH.markNotifsRead(uid);
+    document.getElementById('notifList').innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">لا توجد إشعارات</div></div>';
+  }
+
+  // إصلاح #4: الضغط على الإشعار ينقل للفلتر المناسب
+  function handleNotifClick(type) {
+    if (type==='warning'||type==='complete') {
+      notifOpen=false;
+      document.getElementById('notifPanel').classList.remove('open');
+      showPage('cylinders');
+      if (type==='warning') filterCyls('rejected', document.querySelector('[data-filter="rejected"]'));
+      else filterCyls('active', document.querySelector('[data-filter="active"]'));
+    }
+  }
+
+  // ===== لوحة التحكم =====
+  async function renderDashboard() {
+    const stats=await SCH.getStats();
+
+    // إصلاح #4: تنبيه التأخر قابل للضغط
+    const lateEl=document.getElementById('lateAlert');
+    if (stats.lateCyls.length) {
+      lateEl.innerHTML=`<div class="alert alert-warn" style="cursor:pointer;margin-bottom:12px" onclick="UI.goToLate()">
+        ⏰ تنبيه: ${stats.lateCyls.length} سلندر تجاوز موعد التسليم! اضغط للعرض
+        <br><small style="opacity:0.8">${stats.lateCyls.map(c=>c.code).join(' · ')}</small>
+      </div>`;
+    } else if (stats.stageDelayed) {
+      lateEl.innerHTML=`<div class="alert alert-warn" style="cursor:pointer;margin-bottom:12px" onclick="UI.goToStageDelayed()">
+        🕐 ${stats.stageDelayed} سلندر متأخر في مرحلته أكثر من 24 ساعة
+      </div>`;
+    } else lateEl.innerHTML='';
+
+    // إصلاح #5: البطاقات قابلة للضغط
+    document.getElementById('statsGrid').innerHTML=`
+      <div class="stat-card" onclick="UI.goToFilter('all')" style="cursor:pointer">
+        <div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي</div>
+      </div>
+      <div class="stat-card blue" onclick="UI.goToFilter('active')" style="cursor:pointer">
+        <div class="stat-num">${stats.active}</div><div class="stat-label">نشط</div>
+      </div>
+      <div class="stat-card red" onclick="UI.goToFilter('rejected')" style="cursor:pointer">
+        <div class="stat-num">${stats.rejected}</div><div class="stat-label">مرفوض</div>
+      </div>
+      <div class="stat-card green" onclick="UI.goToFilter('delivered')" style="cursor:pointer">
+        <div class="stat-num">${stats.delivered}</div><div class="stat-label">مُسلَّم</div>
+      </div>
+      <div class="stat-card warn" onclick="UI.goToFilter('late')" style="cursor:pointer">
+        <div class="stat-num">${stats.late}</div><div class="stat-label">⏰ متأخر تسليم</div>
+      </div>
+      <div class="stat-card" onclick="UI.goToFilter('stageDelayed')" style="cursor:pointer">
+        <div class="stat-num">${stats.stageDelayed}</div><div class="stat-label">🕐 متأخر بمرحلة</div>
+      </div>
+    `;
+
+    // متوسط وقت المراحل
+    const stageEl=document.getElementById('stageStats');
+    if (stats.avgStageTimes.length) {
+      const max=Math.max(...stats.avgStageTimes.map(s=>s.avg));
+      stageEl.innerHTML=stats.avgStageTimes.map(s=>`
+        <div class="chart-bar-wrap">
+          <div class="chart-bar-label"><span>${s.stage}</span><span>${SCH.fmtDuration(s.avg)}</span></div>
+          <div class="chart-bar"><div class="chart-bar-fill" style="width:${(s.avg/max*100).toFixed(0)}%"></div></div>
+        </div>`).join('');
+    } else stageEl.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">لا توجد بيانات كافية بعد</div></div>';
+
+    // أكثر المراحل عيوباً
+    const defEl=document.getElementById('defectStats');
+    if (stats.topDefects.length) {
+      const max=stats.topDefects[0][1];
+      defEl.innerHTML=stats.topDefects.map(([stage,count])=>`
+        <div class="chart-bar-wrap">
+          <div class="chart-bar-label"><span>${stage}</span><span>${count} عيب</span></div>
+          <div class="chart-bar"><div class="chart-bar-fill danger" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+        </div>`).join('');
+    } else defEl.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">لا توجد عيوب مسجلة</div></div>';
+
+    // إصلاح #15 و #16: أداء العمال مع وردية واضحة وقابل للضغط
+    document.getElementById('workerPerf').innerHTML=stats.workers.length
+      ? stats.workers.map(w=>{
+          const shift=SCH.SHIFTS[w.shift||'morning'];
+          return `<div class="worker-card" onclick="UI.showWorkerDetail('${w.id}')" style="cursor:pointer">
+            <div class="worker-avatar">👷</div>
+            <div class="worker-info">
+              <div class="worker-name">${w.name} <span class="shift-badge shift-${w.shift||'morning'}">${shift.icon} ${shift.label}</span></div>
+              <div class="worker-sub">${w.id} · ${w.machine||'بدون ماكينة'}</div>
+              <div class="worker-stats">✓ ${w.done} سلندر · ⚠ ${w.defects} عيب</div>
+            </div>
+          </div>`;
+        }).join('')
+      : '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>';
+  }
+
+  // إصلاح #5: الانتقال للفلتر من لوحة التحكم
+  function goToFilter(f) {
+    showPage('cylinders');
+    const chip=document.querySelector(`[data-filter="${f}"]`);
+    if (chip) filterCyls(f, chip);
+  }
+  function goToLate() { goToFilter('late'); }
+  function goToStageDelayed() { goToFilter('stageDelayed'); }
+
+  // ===== السلندرات =====
+  function filterCyls(f, el) {
+    currentCylFilter=f;
+    document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderCyls();
+  }
+
+  // إصلاح #11: عداد الفلاتر
+  function updateFilterCounts() {
+    const counts = {
+      all: cylinders.length,
+      active: cylinders.filter(c=>c.status==='active').length,
+      rejected: cylinders.filter(c=>c.status==='rejected').length,
+      delivered: cylinders.filter(c=>c.status==='delivered').length,
+      late: cylinders.filter(c=>c.status==='active'&&SCH.isLate(c.deliveryDate)).length,
+      stageDelayed: cylinders.filter(c=>SCH.isStageDelayed(c)).length,
+    };
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      const f=chip.dataset.filter;
+      if (f && counts[f] !== undefined) {
+        const label=chip.textContent.split('(')[0].trim();
+        chip.textContent=counts[f]>0?`${label} (${counts[f]})`:label;
+        chip.dataset.filter=f;
+      }
+    });
+  }
+
+  function renderCyls() {
+    const q=(document.getElementById('cylSearch')?.value||'').toLowerCase();
+    let list=[...cylinders];
+    if (currentCylFilter==='late') list=list.filter(c=>c.status==='active'&&SCH.isLate(c.deliveryDate));
+    else if (currentCylFilter==='stageDelayed') list=list.filter(c=>SCH.isStageDelayed(c));
+    else if (currentCylFilter!=='all') list=list.filter(c=>c.status===currentCylFilter);
+    if (q) list=list.filter(c=>c.code.toLowerCase().includes(q)||c.press.toLowerCase().includes(q)||(c.edition||'').toLowerCase().includes(q));
+    const el=document.getElementById('cylList');
+    if (!list.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">🔩</div><div class="empty-text">لا توجد سلندرات</div></div>'; return; }
+    el.innerHTML=list.map(c=>{
+      const late=SCH.isLate(c.deliveryDate)&&c.status==='active';
+      const stageDelayed=SCH.isStageDelayed(c);
+      const prog=Math.round(((c.currentStageIndex+1)/c.stages.length)*100);
+      const sc=SCH.statusClass(c.status,late);
+      // إصلاح #10: عرض "تم التسليم" للمسلّم
+      const currentStageLabel = c.status==='delivered' ? '✅ تم التسليم' : c.stages[c.currentStageIndex]||'مكتمل';
+      return `<div class="cyl-card ${sc}${stageDelayed?' stage-delayed':''}" onclick="UI.openCylDetail('${c.id}')">
+        <div class="cyl-header">
+          <div>
+            <div class="cyl-code">${c.code}</div>
+            <div class="cyl-meta">${c.press} · ${c.type==='iron'?'🔩 حديد':'✨ كروم'}${c.deliveryDate?' · 📅 '+c.deliveryDate:''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span class="status-badge status-${sc}">${SCH.statusLabel(c.status,late)}</span>
+            ${stageDelayed?'<span class="status-badge status-late">🕐 متأخر بمرحلة</span>':''}
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span style="color:var(--gold);font-weight:700">${currentStageLabel}</span><span>${prog}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+        </div>
+        ${c.assignedWorker?`<div style="font-size:11px;color:var(--text2);margin-top:6px">👷 ${c.assignedWorker}</div>`:''}
+        ${c.rejectReason&&c.status==='rejected'?`<div style="font-size:11px;color:var(--danger);margin-top:4px">⚠ ${c.rejectReason}</div>`:''}
+        ${currentUser?.role==='manager'?`<div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();UI.confirmDelete('${c.id}','${c.code}')">🗑️</button>
+        </div>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  // إصلاح #3 و #8: تأكيد حذف السلندر
+  function confirmDelete(cylId, cylCode) {
+    showConfirm(
+      'حذف السلندر',
+      `هل تريد حذف السلندر "${cylCode}" نهائياً؟ لا يمكن التراجع عن هذا القرار.`,
+      async () => {
+        await SCH.deleteCyl(cylId);
+        closeModal('confirm');
+        showToast('تم الحذف');
+      }
+    );
+  }
+
+  // إضافة سلندر
+  async function showAddCyl() {
+    selectedType='iron';
+    document.getElementById('typeIron').classList.add('active');
+    document.getElementById('typeChrome').classList.remove('active');
+    ['ac_code','ac_press','ac_edition','ac_notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ac_entry').value=new Date().toISOString().split('T')[0];
+    document.getElementById('ac_delivery').value='';
+    const workers=await SCH.getWorkers();
+    document.getElementById('ac_worker').innerHTML='<option value="">-- بدون تعيين --</option>'+workers.map(w=>`<option value="${w.id}">${w.name} (${SCH.SHIFTS[w.shift||'morning'].label})</option>`).join('');
+    openModal('addCyl');
+  }
+
+  function selectType(t) {
+    selectedType=t;
+    document.getElementById('typeIron').classList.toggle('active',t==='iron');
+    document.getElementById('typeChrome').classList.toggle('active',t==='chrome');
+  }
+
+  async function addCyl() {
+    const code=document.getElementById('ac_code').value.trim();
+    const press=document.getElementById('ac_press').value.trim();
+    if (!code||!press) { showToast('أدخل الكود واسم المطبعة'); return; }
+    const btn=document.getElementById('addCylBtn');
+    btn.disabled=true; btn.textContent='...';
+    await SCH.addCylinder({code,press,type:selectedType,edition:document.getElementById('ac_edition').value.trim(),entryDate:document.getElementById('ac_entry').value,deliveryDate:document.getElementById('ac_delivery').value,notes:document.getElementById('ac_notes').value.trim(),assignedWorker:document.getElementById('ac_worker').value,by:currentUser.id,byName:currentUser.name});
+    btn.disabled=false; btn.textContent='إضافة';
+    closeModal('addCyl'); showToast('✅ تم إضافة السلندر');
+  }
+
+  // ===== تفاصيل السلندر =====
+  async function openCylDetail(id) {
+    activeCylId=id;
+    const c=await SCH.getCylById(id);
+    if (!c) return;
+    const isManager=currentUser.role==='manager';
+    const late=SCH.isLate(c.deliveryDate)&&c.status==='active';
+    const prog=Math.round(((c.currentStageIndex+1)/c.stages.length)*100);
+    const isLast=c.currentStageIndex===c.stages.length-1;
+
+    let html=`<div class="modal-title">${c.code}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="status-badge status-${SCH.statusClass(c.status,late)}">${SCH.statusLabel(c.status,late)}</span>
+        <span style="font-size:12px;color:var(--text2)">${c.type==='iron'?'🔩 حديد':'✨ كروم'} · ${c.press}</span>
+      </div>
+      ${late?`<div class="alert alert-warn" style="margin-bottom:10px">⏰ تجاوز موعد التسليم: ${c.deliveryDate}</div>`:''}
+      ${c.rejectReason?`<div class="alert alert-danger" style="margin-bottom:10px">⚠ سبب الرفض: ${c.rejectReason} — بواسطة: ${c.rejectByName||'-'}</div>`:''}
+      <div class="progress-wrap">
+        <div class="progress-label"><span>${c.status==='delivered'?'✅ تم التسليم':c.stages[c.currentStageIndex]}</span><span>${prog}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+      </div>
+      <div class="stages-list" style="margin:12px 0">
+        ${c.stages.map((s,i)=>{
+          const done=i<c.currentStageIndex, cur=i===c.currentStageIndex;
+          const hist=c.history?.find(h=>h.stage===s);
+          const dur=hist?.duration?SCH.fmtDuration(hist.duration):null;
+          // إصلاح #1: تمييز المرحلة الحالية فقط (الباقي مقفل للعامل)
+          const isClickable=!isManager&&cur&&c.status==='active';
+          return `<div class="stage-item ${done?'done':cur?'current':'pending'}">
+            <div class="stage-num">${done?'✓':i+1}</div>
+            <div class="stage-info">
+              <div class="stage-name">${s}${cur&&!isManager?'  ← أنت هنا':''}</div>
+              ${hist?`<div class="stage-time">${SCH.fmtTime(hist.time)} · ${hist.byName||hist.by}</div>`:''}
+              ${hist?.startTime&&hist?.endTime?`<div class="stage-duration">⏱ ${SCH.fmtDuration(SCH.calcDuration(hist.startTime,hist.endTime))}</div>`:''}
+              ${dur&&!hist?.endTime?`<div class="stage-duration">⏱ جارٍ: ${dur}</div>`:''}
+              ${hist?.note&&hist.note!=='بدء التشغيل'?`<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 ${hist.note}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    // إصلاح #1: أزرار العامل — فقط المرحلة الحالية
+    if (!isManager && c.status==='active') {
+      html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`;
+      if (!isLast) html+=`<button class="btn btn-gold" style="flex:1" onclick="UI.showAdvance()">التالية ←</button>`;
+      if (c.currentStageIndex>0) html+=`<button class="btn btn-outline btn-sm" onclick="UI.showGoBack()">→ رجوع</button>`;
+      // إصلاح #7: زر العيب يعمل
+      html+=`<button class="btn btn-danger btn-sm" onclick="UI.showReject()">⚠ إبلاغ عيب</button></div>`;
+    }
+
+    // إصلاح #2: المرفوض لا يظهر للعامل — فقط المدير يرى زر الإعادة
+    if (isManager) {
+      html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`;
+      if (c.status==='active'&&isLast) html+=`<button class="btn btn-success" style="flex:1" onclick="UI.showDeliver()">✅ تسليم للعميل</button>`;
+      if (c.status==='rejected') html+=`<button class="btn btn-gold" onclick="UI.showReinstate()">🔄 إعادة تشغيل</button>`;
+      html+=`<button class="btn btn-outline btn-sm" onclick="UI.showPrintCard()">🖨️ بطاقة</button></div>`;
+    }
+
+    // إصلاح #14 و #22: السجل الزمني الكامل مع المدد والعيوب
+    html+=`<div class="divider"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px">📋 السجل الزمني</div>
+      <div class="timeline">
+        ${(c.history||[]).map(h=>{
+          const type=h.stage.includes('عيب')||h.stage.includes('مرفوض')?'warn':h.stage.includes('رجوع')||h.stage.includes('←')?'back':h.stage.includes('تسليم')||h.stage.includes('✅')?'deliver':'';
+          const shift=h.shift?SCH.SHIFTS[h.shift]:null;
+          const dur=h.startTime&&h.endTime?SCH.fmtDuration(SCH.calcDuration(h.startTime,h.endTime)):null;
+          return `<div class="tl-item ${type}">
+            <div class="tl-dot"></div>
+            <div class="tl-stage">${h.stage}</div>
+            <div class="tl-meta">${SCH.fmtTime(h.time)} · ${h.byName||h.by}${shift?' · '+shift.icon+' '+shift.label:''}${h.note&&h.note!=='بدء التشغيل'?' · '+h.note:''}</div>
+            ${dur?`<div class="tl-duration">⏱ المدة: ${dur}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    // إصلاح #22: سجل العيوب
+    if ((c.defects||[]).length>0) {
+      html+=`<div class="divider"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:10px">⚠ سجل العيوب</div>
+        ${c.defects.map(d=>`<div style="background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px">
+          <div style="font-weight:700;color:var(--danger)">⚠ ${d.reason}</div>
+          <div style="color:var(--text2);margin-top:4px">المرحلة: ${d.stage} · بواسطة: ${d.byName} · ${SCH.fmtTime(d.time)}</div>
+        </div>`).join('')}`;
+    }
+
+    document.getElementById('cylDetailContent').innerHTML=html;
+    openModal('cylDetail');
+  }
+
+  // انتقال
+  function showAdvance() {
+    const c=cylinders.find(x=>x.id===activeCylId);
+    if (!c) return;
+    document.getElementById('advanceTitle').textContent=`← ${c.stages[c.currentStageIndex+1]}`;
+    document.getElementById('adv_note').value='';
+    openModal('advance');
+  }
+  async function confirmAdvance() {
+    const note=document.getElementById('adv_note').value.trim();
+    const r=await SCH.advanceStage(activeCylId,currentUser.id,currentUser.name,note);
+    if (r.ok) { closeModal('advance'); closeModal('cylDetail'); showToast('✅ انتقلت للمرحلة التالية'); }
+    else showToast(r.msg);
+  }
+
+  // رجوع
+  function showGoBack() { document.getElementById('back_reason').value=''; openModal('goback'); }
+  async function confirmGoBack() {
+    const reason=document.getElementById('back_reason').value.trim();
+    const r=await SCH.goBackStage(activeCylId,currentUser.id,currentUser.name,reason);
+    if (r.ok) { closeModal('goback'); closeModal('cylDetail'); showToast('↩ رجعت للمرحلة السابقة'); }
+    else showToast(r.msg);
+  }
+
+  // إصلاح #7: إبلاغ عيب يعمل
+  async function showReject() {
+    const c=await SCH.getCylById(activeCylId);
+    if (!c) return;
+    document.getElementById('rej_reason').value='';
+    document.getElementById('rej_stage').innerHTML=c.stages.map((s,i)=>`<option value="${i}">${i+1}. ${s}</option>`).join('');
+    document.getElementById('rej_stage').value=c.currentStageIndex;
+    closeModal('cylDetail');
+    openModal('reject');
+  }
+  async function confirmReject() {
+    const reason=document.getElementById('rej_reason').value.trim();
+    if (!reason) { showToast('أدخل سبب العيب'); return; }
+    const idx=parseInt(document.getElementById('rej_stage').value);
+    await SCH.rejectCyl(activeCylId,reason,currentUser.id,currentUser.name,idx);
+    closeModal('reject'); renderWorkerCyls(); showToast('⚠ تم الإبلاغ عن العيب');
+  }
+
+  // تسليم
+  function showDeliver() { document.getElementById('del_to').value=''; openModal('deliver'); }
+  async function confirmDeliver() {
+    const to=document.getElementById('del_to').value.trim();
+    if (!to) { showToast('أدخل اسم المستلم'); return; }
+    await SCH.deliverCyl(activeCylId,to);
+    closeModal('deliver'); closeModal('cylDetail'); showToast('✅ تم التسليم');
+  }
+
+  // إعادة تشغيل
+  async function showReinstate() {
+    const c=await SCH.getCylById(activeCylId);
+    document.getElementById('ri_stage').innerHTML=c.stages.map((s,i)=>`<option value="${i}">${i+1}. ${s}</option>`).join('');
+    openModal('reinstate');
+  }
+  async function confirmReinstate() {
+    const idx=parseInt(document.getElementById('ri_stage').value);
+    await SCH.reinstateCyl(activeCylId,idx);
+    closeModal('reinstate'); closeModal('cylDetail'); showToast('🔄 تم إعادة التشغيل');
+  }
+
+  // بطاقة الطباعة
+  async function showPrintCard() {
+    const c=await SCH.getCylById(activeCylId);
+    const totalTime=c.history?.length>1?SCH.calcDuration(c.history[0].startTime,c.history[c.history.length-1].time):null;
+    document.getElementById('printCard').innerHTML=`
+      <div class="print-card" id="thePrintCard">
+        <div class="print-header">
+          <div><div class="print-company">بيت السلندر السوري · Syrian Cylinder House</div><div style="font-size:11px;color:#666">${c.press} · ${c.type==='iron'?'حديد':'كروم'}</div></div>
+          <div class="print-code">${c.code}</div>
+        </div>
+        <div class="print-grid">
+          <div class="print-field"><label>الطبعة</label><span>${c.edition||'-'}</span></div>
+          <div class="print-field"><label>تاريخ الدخول</label><span>${c.entryDate||'-'}</span></div>
+          <div class="print-field"><label>تاريخ التسليم المتوقع</label><span>${c.deliveryDate||'-'}</span></div>
+          <div class="print-field"><label>الحالة</label><span>${SCH.statusLabel(c.status)}</span></div>
+          <div class="print-field"><label>تسلّم بواسطة</label><span>${c.deliveredTo||'-'}</span></div>
+          <div class="print-field"><label>الوقت الكلي</label><span>${totalTime?SCH.fmtDuration(totalTime):'-'}</span></div>
+        </div>
+        ${c.rejectReason?`<div style="background:#fff3f3;border:1px solid #ffcccc;border-radius:6px;padding:8px;font-size:12px;margin-bottom:12px"><strong>⚠ آخر عيب:</strong> ${c.rejectReason} — ${c.rejectByName||''} — ${SCH.fmtTime(c.rejectAt)}</div>`:''}
+        <div class="print-stages">
+          <div style="font-weight:700;margin-bottom:8px;font-size:13px">المراحل التفصيلية:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;font-size:11px;font-weight:700;color:#666;padding:4px 0;border-bottom:1px solid #ddd;margin-bottom:4px">
+            <span>المرحلة</span><span>بواسطة</span><span>الوقت</span><span>المدة</span>
+          </div>
+          ${c.stages.map((s,i)=>{
+            const h=c.history?.find(x=>x.stage===s);
+            const done=i<=c.currentStageIndex;
+            const dur=h?.startTime&&h?.endTime?SCH.fmtDuration(SCH.calcDuration(h.startTime,h.endTime)):'-';
+            return `<div class="print-stage-row ${done?'done-row':''}">
+              <span>${i+1}. ${s}</span>
+              <span>${h?.byName||'-'}</span>
+              <span>${h?SCH.fmtTime(h.time):'-'}</span>
+              <span>${dur}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        ${(c.defects||[]).length>0?`
+          <div style="margin-top:12px;border-top:2px solid #e74c3c;padding-top:10px">
+            <div style="font-weight:700;font-size:13px;color:#e74c3c;margin-bottom:8px">⚠ سجل العيوب والإعادة:</div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:11px;font-weight:700;color:#666;padding:4px 0;border-bottom:1px solid #ddd;margin-bottom:4px">
+              <span>السبب</span><span>المرحلة</span><span>العامل</span><span>التاريخ</span>
+            </div>
+            ${c.defects.map(d=>`<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:11px;padding:4px 0;border-bottom:1px solid #f5f5f5;color:#e74c3c">
+              <span>${d.reason}</span><span>${d.stage}</span><span>${d.byName}</span><span>${SCH.fmtTime(d.time)}</span>
+            </div>`).join('')}
+          </div>`:''}
+        ${c.notes?`<div style="margin-top:10px;font-size:12px;background:#f9f9f9;padding:8px;border-radius:4px"><strong>ملاحظات:</strong> ${c.notes}</div>`:''}
+        <div class="print-sig">
+          <div class="print-sig-box"><div class="print-sig-line">مدير الإنتاج</div></div>
+          <div class="print-sig-box"><div class="print-sig-line">مراقب الجودة</div></div>
+          <div class="print-sig-box"><div class="print-sig-line">المستلم</div></div>
+        </div>
+      </div>`;
+    openModal('printCard');
+  }
+
+  // ===== العمال =====
+  async function renderWorkers() {
+    const workers=await SCH.getWorkers();
+    const el=document.getElementById('workerList');
+    if (!workers.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-text">لا يوجد عمال</div></div>'; return; }
+    el.innerHTML=workers.map(w=>{
+      const shift=SCH.SHIFTS[w.shift||'morning'];
+      return `<div class="worker-card">
+        <div class="worker-avatar">👷</div>
+        <div class="worker-info">
+          <div class="worker-name">${w.name} <span class="shift-badge shift-${w.shift||'morning'}">${shift.icon} ${shift.label}</span></div>
+          <div class="worker-sub">${w.id} · ${w.machine||'بدون ماكينة'} · ${shift.time}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="UI.showChangeWPass('${w.id}')">🔑</button>
+          <button class="btn btn-sm btn-info" onclick="UI.showSendMsgTo('${w.id}')">✉️</button>
+          <!-- إصلاح #3: تأكيد حذف العامل -->
+          <button class="btn btn-danger btn-sm" onclick="UI.confirmDeleteWorker('${w.id}','${w.name}')">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function confirmDeleteWorker(wid, wname) {
+    showConfirm('حذف العامل', `هل تريد حذف العامل "${wname}" نهائياً؟`, async () => {
+      await deleteDoc(doc(SCH.db, 'users', wid));
+      closeModal('confirm'); renderWorkers(); showToast('تم الحذف');
+    });
+  }
+
+  async function showAddWorker() {
+    ['aw_name','aw_user','aw_pass','aw_machine'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('aw_shift').value='morning';
+    openModal('addWorker');
+  }
+
+  async function addWorker() {
+    const name=document.getElementById('aw_name').value.trim();
+    const user=document.getElementById('aw_user').value.trim();
+    const pass=document.getElementById('aw_pass').value.trim();
+    const shift=document.getElementById('aw_shift').value;
+    const machine=document.getElementById('aw_machine').value.trim();
+    if (!name||!user||!pass) { showToast('أدخل جميع البيانات'); return; }
+    if (/\s/.test(user)) { showToast('اسم المستخدم بدون مسافات'); return; }
+    const r=await SCH.addWorker(name,user,pass,shift,machine);
+    if (!r.ok) { showToast(r.msg); return; }
+    closeModal('addWorker'); renderWorkers(); showToast('✅ تم إضافة العامل');
+  }
+
+  function showChangeWPass(wid) { document.getElementById('cwp_id').value=wid; document.getElementById('cwp_pass').value=''; openModal('changeWPass'); }
+  async function confirmChangeWPass() {
+    const wid=document.getElementById('cwp_id').value, pass=document.getElementById('cwp_pass').value.trim();
+    if (!pass) { showToast('أدخل كلمة المرور'); return; }
+    await SCH.changeWorkerPass(wid,pass); closeModal('changeWPass'); showToast('✅ تم تغيير كلمة المرور');
+  }
+
+  // إصلاح #15: عرض تفاصيل العامل
+  async function showWorkerDetail(wid) {
+    const w=await SCH.getUserById(wid);
+    if (!w) return;
+    const shift=SCH.SHIFTS[w.shift||'morning'];
+    const workerCyls=cylinders.filter(c=>c.history?.some(h=>h.by===wid));
+    const defects=(cylinders.flatMap(c=>c.defects||[])).filter(d=>d.by===wid);
+    document.getElementById('workerDetailContent').innerHTML=`
+      <div class="modal-title">👷 ${w.name}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <span class="shift-badge shift-${w.shift||'morning'}">${shift.icon} ${shift.label}</span>
+        <span style="font-size:12px;color:var(--text2)">${w.machine||'بدون ماكينة'}</span>
+        <span style="font-size:12px;color:var(--text2)">@${w.id}</span>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px">
+        <div class="stat-card"><div class="stat-num" style="font-size:22px">${workerCyls.length}</div><div class="stat-label">سلندر شارك فيه</div></div>
+        <div class="stat-card red"><div class="stat-num" style="font-size:22px">${defects.length}</div><div class="stat-label">عيب مسجل</div></div>
+        <div class="stat-card green"><div class="stat-num" style="font-size:22px">${workerCyls.filter(c=>c.status==='delivered').length}</div><div class="stat-label">مسلّم</div></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px">آخر السلندرات:</div>
+      ${workerCyls.slice(0,5).map(c=>`<div class="cyl-card ${c.status}" style="margin-bottom:8px" onclick="UI.openCylDetail('${c.id}')">
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-weight:700;color:var(--gold)">${c.code}</span>
+          <span class="status-badge status-${c.status}">${SCH.statusLabel(c.status)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2)">${c.press}</div>
+      </div>`).join('')||'<div class="empty-state"><div class="empty-text">لا توجد سلندرات</div></div>'}
+    `;
+    openModal('workerDetail');
+  }
+
+  // ===== الرسائل =====
+  async function renderMgrMsgs() {
+    const [msgs,workers]=await Promise.all([SCH.getMessages(),SCH.getWorkers()]);
+    const el=document.getElementById('msgListMgr');
+    if (!msgs.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">✉️</div><div class="empty-text">لا توجد رسائل</div></div>'; return; }
+    el.innerHTML=msgs.map(m=>{
+      const w=workers.find(x=>x.id===m.to);
+      return `<div class="msg-card ${!m.read?'unread':''}">
+        <div class="msg-header"><span class="msg-from">إلى: ${w?.name||m.to}</span><span class="msg-time">${SCH.fmtTime(m.time)}</span></div>
+        <div class="msg-text">${m.text}</div>
+        <div class="msg-status">${m.confirmed?'✅ قرأها':'⏳ لم يُقرأ بعد'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function showSendMsg() {
+    const workers=await SCH.getWorkers();
+    document.getElementById('sm_to').innerHTML=workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+    document.getElementById('sm_text').value=''; openModal('sendMsg');
+  }
+  async function showSendMsgTo(wid) { await showSendMsg(); document.getElementById('sm_to').value=wid; }
+  async function sendMsg() {
+    const to=document.getElementById('sm_to').value, text=document.getElementById('sm_text').value.trim();
+    if (!to||!text) { showToast('اختر عامل واكتب رسالة'); return; }
+    await SCH.sendMessage(to,currentUser.id,currentUser.name,text);
+    closeModal('sendMsg'); renderMgrMsgs(); showToast('✅ تم الإرسال');
+  }
+
+  // ===== الإعدادات =====
+  async function renderSettings() {
+    const workers=await SCH.getWorkers();
+    document.getElementById('s_worker').innerHTML=workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+  }
+  async function saveMgrPass() {
+    const old=document.getElementById('s_old').value.trim(), nw=document.getElementById('s_new').value.trim(), conf=document.getElementById('s_conf').value.trim();
+    if (!old||!nw) { showToast('أدخل كلمات المرور'); return; }
+    if (nw!==conf) { showToast('كلمتا المرور غير متطابقتين'); return; }
+    const r=await SCH.changePass(currentUser.id,old,nw);
+    if (!r.ok) { showToast(r.msg); return; }
+    ['s_old','s_new','s_conf'].forEach(id=>document.getElementById(id).value='');
+    showToast('✅ تم تغيير كلمة المرور');
+  }
+  async function saveWorkerPass() {
+    const wid=document.getElementById('s_worker').value, pass=document.getElementById('s_wpass').value.trim();
+    if (!wid||!pass) { showToast('اختر عامل وأدخل كلمة المرور'); return; }
+    await SCH.changeWorkerPass(wid,pass); document.getElementById('s_wpass').value=''; showToast('✅ تم تغيير كلمة مرور العامل');
+  }
+
+  // ===== صفحة العامل =====
+  function renderWorkerShiftInfo() {
+    const shift=SCH.SHIFTS[currentUser.shift||SCH.getCurrentShift()];
+    const el=document.getElementById('workerShiftInfo');
+    if (el) el.innerHTML=`<div class="alert alert-info">وردية: ${shift.icon} ${shift.label} · ${shift.time}</div>`;
+  }
+
+  // إصلاح #2: العامل لا يرى المرفوض
+  function renderWorkerCyls() {
+    const myId=currentUser.id;
+    const list=cylinders.filter(c=>
+      c.status!=='rejected' && // إصلاح #2: إخفاء المرفوض عن العامل
+      (c.assignedWorker===myId||c.history?.some(h=>h.by===myId))
+    );
+    const el=document.getElementById('workerCylList');
+    if (!list.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">🔩</div><div class="empty-text">لا توجد سلندرات مُسندة إليك</div></div>'; return; }
+    el.innerHTML=list.map(c=>{
+      const late=SCH.isLate(c.deliveryDate)&&c.status==='active';
+      const prog=Math.round(((c.currentStageIndex+1)/c.stages.length)*100);
+      const sc=SCH.statusClass(c.status,late);
+      const currentStageLabel=c.status==='delivered'?'✅ تم التسليم':c.stages[c.currentStageIndex];
+      return `<div class="cyl-card ${sc}" onclick="UI.openCylDetail('${c.id}')">
+        <div class="cyl-header">
+          <div><div class="cyl-code">${c.code}</div><div class="cyl-meta">${c.press}${late?' · ⏰ متأخر':''}</div></div>
+          <span class="status-badge status-${sc}">${SCH.statusLabel(c.status,late)}</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span style="color:var(--gold);font-weight:700">${currentStageLabel}</span><span>${prog}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function renderWorkerMsgs() {
+    const msgs=await SCH.getMyMessages(currentUser.id);
+    const el=document.getElementById('workerMsgList');
+    if (!msgs.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">✉️</div><div class="empty-text">لا توجد رسائل</div></div>'; return; }
+    el.innerHTML=msgs.map(m=>`
+      <div class="msg-card ${!m.read?'unread':''}">
+        <div class="msg-header"><span class="msg-from">من: ${m.fromName||'المدير'}</span><span class="msg-time">${SCH.fmtTime(m.time)}</span></div>
+        <div class="msg-text">${m.text}</div>
+        ${!m.confirmed?`<button class="btn btn-success btn-sm" style="margin-top:10px" onclick="UI.confirmMsg('${m.id}')">✅ تم الاستلام</button>`:'<div class="msg-status">✅ تم التأكيد</div>'}
+      </div>`).join('');
+  }
+
+  async function confirmMsg(msgId) {
+    await SCH.confirmRead(msgId,currentUser.id,currentUser.name); renderWorkerMsgs(); showToast('✅ تم تأكيد الاستلام');
+  }
+
+  // ===== إصلاح #3: تأكيد عام =====
+  function showConfirm(title, msg, onConfirm) {
+    document.getElementById('confirmTitle').textContent=title;
+    document.getElementById('confirmMsg').textContent=msg;
+    document.getElementById('confirmOkBtn').onclick=onConfirm;
+    openModal('confirm');
+  }
+
+  // ===== مساعدات =====
+  function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
+  function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
+
+  function showToast(msg) {
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),3000);
+  }
+
+  window.UI={
+    init, doLogin, logout, showPage, toggleNotifs, clearNotifs, handleNotifClick,
+    goToFilter, goToLate, goToStageDelayed,
+    filterCyls, renderCyls, showAddCyl, selectType, addCyl,
+    openCylDetail, showAdvance, confirmAdvance, showGoBack, confirmGoBack,
+    showReject, confirmReject, showDeliver, confirmDeliver,
+    showReinstate, confirmReinstate, showPrintCard,
+    confirmDelete, confirmDeleteWorker,
+    renderWorkers, showAddWorker, addWorker, showChangeWPass, confirmChangeWPass,
+    showWorkerDetail,
+    renderMgrMsgs, showSendMsg, showSendMsgTo, sendMsg,
+    renderSettings, saveMgrPass, saveWorkerPass,
+    renderWorkerCyls, renderWorkerMsgs, confirmMsg,
+    openModal, closeModal
+  };
+
+  init();
+})();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
